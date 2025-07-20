@@ -1,0 +1,9 @@
+server (
+	serverName "A cool server"
+	listen 8080
+	location /awesome (
+		root ./exampleSite/
+		return 200
+		index awesome.html
+	)
+)
