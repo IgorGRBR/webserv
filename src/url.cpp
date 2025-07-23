@@ -99,6 +99,7 @@ bool Url::matchSegments(const Url& other) const {
 }
 
 Url Url::tailDiff(const Url& other) const {
+	if (!matchSegments(other)) return Url();
 	if (segments.size() > other.segments.size()) {
 		Url result;
 		for (uint i = other.segments.size(); i < segments.size(); i++) {
@@ -118,6 +119,7 @@ Url Url::tailDiff(const Url& other) const {
 
 std::vector<std::string> Url::tailDiffVec(const Url& other) const {
 	std::vector<std::string> result;
+	if (!matchSegments(other)) return result;
 	if (segments.size() > other.segments.size()) {
 		for (uint i = other.segments.size(); i < segments.size(); i++) {
 			result.push_back(segments[i]);

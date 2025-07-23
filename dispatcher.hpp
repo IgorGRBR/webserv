@@ -1,8 +1,6 @@
 #ifndef EVENT_HPP
 #define EVENT_HPP
 
-#include <map>
-#include <set>
 #ifndef EPOLL_EVENT_COUNT
 #define EPOLL_EVENT_COUNT 20
 #endif
@@ -11,6 +9,8 @@
 #define READ_BUFFER_SIZE 4096
 #endif
 
+#include <map>
+#include <set>
 #include "ystl.hpp"
 #include "error.hpp"
 #include <sys/types.h>
