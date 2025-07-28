@@ -11,7 +11,23 @@ The goal of this project is to create a program that acts as a HTTP web server, 
 Make sure you have installed all the necessary dependencies:
 * On Debian/Ubuntu: `sudo apt install make clang`
 
-After installing dependencies, `cd` into the repository directory and invoke `make`.
+After installing dependencies, `cd` into the repository directory and run `make`.
+
+## Working with the project
+
+Running `make` simply builds a release-suitable build with no debug symbols included. To make a debuggable build, run `make debug`. This will produce a binary that you can debug with `gdb` or `lldb`.
+
+`make clean` cleans up the project directory from build artifacts (object files), whereas `make fclean` additionally deletes the resulting binary.
+
+`make redb` and `make re` recompiles the project with and without debugging symbols respectively.
+
+### Development guidelines
+
+When working on this project, try to follow these as much as you can:
+
+0) Keep the header files in the source directory - for better or worse, this is the project structure I've decided to go with with all of my C/C++ projects, as it allows for a simple-ish level of composability amongst them with the makefile I use.
+
+That's it!
 
 ## Running the webserver
 

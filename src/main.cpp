@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
 				<< maybeListener.getError().getTagMessage() << std::endl;
 		}
 		else {
-			dispatcher.registerHandler(maybeListener.getValue());
+			dispatcher.registerTask(maybeListener.getValue());
 		}
 	}
 	

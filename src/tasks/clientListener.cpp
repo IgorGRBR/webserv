@@ -84,7 +84,7 @@ Result<bool, Webserv::Error> ClientListener::runTask(FDTaskDispatcher& dispatche
 	if (reqHandler.isError()) {
 		return reqHandler.getError();
 	}
-	dispatcher.registerHandler(reqHandler.getValue());
+	dispatcher.registerTask(reqHandler.getValue());
 	return true;
 }
 

@@ -50,7 +50,7 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 		}
 		response.getValue()->setResponseData(respContent);
 		response.getValue()->setResponseCode(error.get().getHTTPCode());
-		dispatcher.registerHandler(response.getValue());
+		dispatcher.registerTask(response.getValue());
 	}
 
 	return false;
@@ -141,7 +141,7 @@ Option<Error> RequestHandler::handleLocation(
 			return response.getError();
 		}
 		response.getValue()->setResponseData(fileContent.get());
-		dispatcher.registerHandler(response.getValue());
+		dispatcher.registerTask(response.getValue());
 		return NONE;
 	}
 	else {

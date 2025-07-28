@@ -21,28 +21,28 @@ FDTaskDispatcher::FDTaskDispatcher() {
 }
 
 FDTaskDispatcher::~FDTaskDispatcher() {
-	for (std::map<int, UniquePtr<IFDTask> >::iterator it = handlers.begin(); it != handlers.end(); it++) {
+	for (std::map<int, UniquePtr<IFDTask> >::iterator it = activeHandlers.begin(); it != activeHandlers.end(); it++) {
 		tryUnregisterDescriptor(it->first);
 		close(it->first);
 	}
 	close(epollFd);
 }
 
-void FDTaskDispatcher::registerHandler(IFDTask* handler) {
-	inserted.push_back(handler);
+void FDTaskDispatcher::registerTask(IFDTask* task) {
+	insertionQueue.push_back(task);
 }
 
 bool FDTaskDispatcher::tryUnregisterDescriptor(int fd) {
-	if (descriptors.find(fd) != descriptors.end()) {
+	if (activeDescriptors.find(fd) != activeDescriptors.end()) {
 		epoll_ctl(epollFd, EPOLL_CTL_DEL, fd, NULL);
-		descriptors.erase(fd);
+		activeDescriptors.erase(fd);
 		return true;
 	}
 	return false;
 }
 
 bool FDTaskDispatcher::tryRegisterDescriptor(int fd, IOMode mode) {
-	if (descriptors.find(fd) != descriptors.end()) {
+	if (activeDescriptors.find(fd) != activeDescriptors.end()) {
 		return false;
 	}
 	struct epoll_event ev;
@@ -52,22 +52,22 @@ bool FDTaskDispatcher::tryRegisterDescriptor(int fd, IOMode mode) {
 	ev.data.fd = fd;
 	int ctlResult = epoll_ctl(epollFd, EPOLL_CTL_ADD, fd, &ev);
 	std::cout << "epoll_ctl: " << ctlResult << std::endl;
-	descriptors.insert(fd);
+	activeDescriptors.insert(fd);
 	return true;
 }
 
 Option<Webserv::Error> FDTaskDispatcher::update() {
 	// Refresh storage
 	std::vector<UniquePtr<IFDTask> > newInserted;
-	for (std::vector<UniquePtr<IFDTask> >::iterator it = inserted.begin(); it != inserted.end(); it++) {
+	for (std::vector<UniquePtr<IFDTask> >::iterator it = insertionQueue.begin(); it != insertionQueue.end(); it++) {
 		if (!tryRegisterDescriptor((*it)->getDescriptor(), (*it)->getIOMode())) {
 			newInserted.push_back(*it);
 		}
 		else {
-			handlers[(*it)->getDescriptor()] = *it;
+			activeHandlers[(*it)->getDescriptor()] = *it;
 		}
 	}
-	inserted = newInserted;
+	insertionQueue = newInserted;
 	
 	// Handle events with available descriptors
 	std::vector<UniquePtr<IFDTask> > freedHandlers;
@@ -78,12 +78,12 @@ Option<Webserv::Error> FDTaskDispatcher::update() {
 
 	for (int i = 0; i < fdNum; i++) {
 		int activeFd = events[i].data.fd;
-		Result<bool, Error> res = handlers[activeFd]->runTask(*this);
+		Result<bool, Error> res = activeHandlers[activeFd]->runTask(*this);
 		if (res.isError()) {
 			return res.getError();
 		}
 		if (!res.getValue()) {
-			freedHandlers.push_back(handlers[activeFd]);
+			freedHandlers.push_back(activeHandlers[activeFd]);
 		}
 	}
 
@@ -92,7 +92,7 @@ Option<Webserv::Error> FDTaskDispatcher::update() {
 		if (!tryUnregisterDescriptor((*it)->getDescriptor())) {
 			return Error(Error::GENERIC_ERROR, "Attempt to close non-existent descriptor");
 		}
-		handlers.erase((*it)->getDescriptor());
+		activeHandlers.erase((*it)->getDescriptor());
 		it->move();
 	}
 
