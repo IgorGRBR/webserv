@@ -98,6 +98,21 @@ Result<HTTPRequest, HTTPRequestError> Webserv::HTTPRequest::fromText(std::string
 			emptyLine = true;
 			break;
 		}
+
+		// Parse a header
+		std::string word;
+		std::stringstream wordStream(line);
+		if (!std::getline(wordStream, word, ':')) {
+			return INVALID_REQUEST; // TODO: a better error message
+		}
+		std::string paramName = word;
+
+		if (!std::getline(wordStream, word, ':')) {
+			return INVALID_REQUEST; // TODO: a better error message
+		}
+		std::string paramValue = trimString(word, ' ');
+
+		request.headers[paramName] = paramValue;
 	}
 
 	// Now read the data segment if it is present

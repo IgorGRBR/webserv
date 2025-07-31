@@ -303,4 +303,7 @@ private:
 // Convers the input string to lowercase.
 std::string strToLower(const std::string&);
 
+// Trims string from the specified character.
+std::string trimString(const std::string&, char);
+
 #endif

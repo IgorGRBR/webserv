@@ -54,6 +54,7 @@ namespace Webserv {
 		Url path;
 		std::string data;
 		HTTPMethod method;
+		std::map<std::string, std::string> headers;
 	};
 
 	std::ostream& operator<<(std::ostream&, const HTTPRequest&);
