@@ -15,7 +15,6 @@
 typedef Webserv::Error Error;
 typedef Webserv::Config::Server::Location Location;
 
-
 typedef Webserv::RequestHandler RequestHandler;
 
 RequestHandler::RequestHandler(const ServerData& sd, int cfd): sData(sd), clientSocketFd(cfd) {};
@@ -95,6 +94,8 @@ Option<Error> RequestHandler::handleLocation(
 	FDTaskDispatcher& dispatcher
 ) {
 	std::string root;
+
+	// TODO: maybe move this check into configuration parsing step?
 	if (location.root.isSome()) {
 		root = location.root.get();
 	}
@@ -112,49 +113,38 @@ Option<Error> RequestHandler::handleLocation(
 	Url rootUrl = Url::fromString(root).get();
 	Url tail = request.getPath().tailDiff(path);
 
-	// Just send the index file
-	if (tail.getSegments().size() == 0) {
-		std::string indexStr = location.index.getOr("index.html");
-		Url index = Url::fromString(indexStr).get();
+	Url respFileUrl = rootUrl + tail;
+	std::string respFilePath = respFileUrl.toString(false);
+	std::cout << "Trying to load: " << respFilePath << std::endl;
 
-		std::string respFilePath = (rootUrl + tail + index).toString(false);
-		std::cout << "Trying to load: " << respFilePath << std::endl;
-		std::ifstream respFile(respFilePath.c_str());
-
-		if (respFile.is_open()) {
-			fileContent = readAll(respFile);
-		}
-	}
-	else {
-		Url respFileUrl = rootUrl + tail;
-		std::string respFilePath = respFileUrl.toString(false);
-		std::cout << "Trying to load: " << respFilePath << std::endl;
-
-		// Here we should check if the path is a directory or a file, and *then* send back the response.
-		FSType fsType = checkFSType(respFilePath);
-		switch (fsType) {
-		case FS_NONE:
-			return Error(Error::FILE_NOT_FOUND, respFilePath);
-		case FS_FILE: {
-				std::ifstream respFile(respFilePath.c_str());
-				if (respFile.is_open()) {
-					fileContent = readAll(respFile);
-				}
-			}
-			break;
-		case FS_DIRECTORY:
-			std::string indexStr = location.index.getOr("index.html");
-			Url index = Url::fromString(indexStr).get();
-
-			std::string indexFilePath = (respFileUrl + index).toString(false);
-			std::cout << "Trying to load: " << indexFilePath << std::endl;
-			std::ifstream respFile(indexFilePath.c_str());
-
+	// Here we should check if the path is a directory or a file, and *then* send back the response.
+	FSType fsType = checkFSType(respFilePath);
+	switch (fsType) {
+	case FS_NONE:
+		fileContent = NONE;
+		break;
+	case FS_FILE: {
+			std::ifstream respFile(respFilePath.c_str());
 			if (respFile.is_open()) {
 				fileContent = readAll(respFile);
 			}
-			break;
 		}
+		break;
+	case FS_DIRECTORY:
+		std::string indexStr = location.index.getOr("index.html");
+		Url index = Url::fromString(indexStr).get();
+
+		std::string indexFilePath = (respFileUrl + index).toString(false);
+		std::cout << "Trying to load: " << indexFilePath << std::endl;
+		std::ifstream respFile(indexFilePath.c_str());
+
+		if (respFile.is_open()) { // Try to load index file
+			fileContent = readAll(respFile);
+		}
+		else { // Try to create directory listing
+			fileContent = makeDirectoryListing(respFilePath, tail.getSegments().size() == 0);
+		}
+		break;
 	}
 
 	if (fileContent.isSome()) {
@@ -167,7 +157,7 @@ Option<Error> RequestHandler::handleLocation(
 		return NONE;
 	}
 	else {
-		return Error(Error::FILE_NOT_FOUND, (rootUrl + tail).toString(false));
+		return Error(Error::FILE_NOT_FOUND, respFilePath);
 	}
 	
 	return Error(Error::GENERIC_ERROR, "Not implemented");

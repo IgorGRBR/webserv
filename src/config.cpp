@@ -127,7 +127,7 @@ LocationResult parseLocationDirective(ParserContext &ctx) {
 					if (ctx.it->getTag() != Webserv::Token::SYMBOL) return Webserv::UNEXPECTED_TOKEN;
 					location.errPages[errCode] = std::string(ctx.it->getSym());
 				}
-				else if (sym == "autoIndex") { // Automatic directory listing
+				else if (sym == "dirListing") { // Automatic directory listing
 					location.dirListing = true;
 				}
 				else if (sym == "index") { // Default file
