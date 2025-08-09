@@ -9,7 +9,7 @@ The goal of this project is to create a program that acts as a HTTP web server, 
 ## Building instructions
 
 Make sure you have installed all the necessary dependencies:
-* On Debian/Ubuntu: `sudo apt install make clang`
+* On Debian/Ubuntu: `sudo apt install make g++`
 
 After installing dependencies, `cd` into the repository directory and run `make`.
 
@@ -40,6 +40,25 @@ You can start the webserver by running the `webserver` executable.
 `webserv` can take an optional path to the configuration file as a single parameter. If the path was not provided - it uses `wsconf.wsv` file located in the current working directory.
 
 ## Configuration file
+
+Configuration file stores the configuration of the webserver, its routes and their properties in a simple, readable DSL. This DSL has a very simple syntax, consisting of:
+
+* symbols - sets of ASCII characters without whitespace. They may represent numbers as well as strings with no spaces;
+* strings - sets of ASCII characters, grouped by double quotes (`"`);
+* groups - sets of symbols or strings.
+
+This allows for an incredibly simple grammar to exist. Essentially, every statement in this DSL follows this form:
+
+```
+[function name] <arg1> <arg2> ... <argN>
+```
+
+, where `function name` is simply a name of a directive, and `arg1 ... argN` are parameters. Since every directive
+### Server declaration
+
+TODO.
+
+### Location declaration
 
 TODO.
 
