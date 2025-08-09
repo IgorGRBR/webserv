@@ -35,7 +35,7 @@ namespace Webserv {
 		Option<Error> handleLocation(const Url&, const Config::Server::Location&, HTTPRequest&, FDTaskDispatcher&);
 	private:
 		RequestHandler(const ServerData&, int);
-
+		
 		ServerData sData;
 		int clientSocketFd;
 	};

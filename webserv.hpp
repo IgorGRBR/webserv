@@ -48,6 +48,12 @@ namespace Webserv {
 	// A simple function that returns the layout of error page in HTML format as a string.
 	std::string makeErrorPage(Error);
 
+	// A function that constructs a directory listing for the provided path.
+	// If `topLevel` is set to true, the generated listing must not contain a
+	// listing for the parent directory; in other words - no `..` allowed if
+	// `topLevel` is true.
+	std::string makeDirectoryListing(const std::string& path, bool topLevel = true);
+
 	// Reads everything from the input stream.
 	std::string readAll(std::ifstream&);
 }
