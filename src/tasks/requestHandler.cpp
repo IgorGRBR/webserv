@@ -126,12 +126,34 @@ Option<Error> RequestHandler::handleLocation(
 		}
 	}
 	else {
-		std::string respFilePath = (rootUrl + tail).toString(false);
+		Url respFileUrl = rootUrl + tail;
+		std::string respFilePath = respFileUrl.toString(false);
 		std::cout << "Trying to load: " << respFilePath << std::endl;
-		std::ifstream respFile(respFilePath.c_str());
 
-		if (respFile.is_open()) {
-			fileContent = readAll(respFile);
+		// Here we should check if the path is a directory or a file, and *then* send back the response.
+		FSType fsType = checkFSType(respFilePath);
+		switch (fsType) {
+		case FS_NONE:
+			return Error(Error::FILE_NOT_FOUND, respFilePath);
+		case FS_FILE: {
+				std::ifstream respFile(respFilePath.c_str());
+				if (respFile.is_open()) {
+					fileContent = readAll(respFile);
+				}
+			}
+			break;
+		case FS_DIRECTORY:
+			std::string indexStr = location.index.getOr("index.html");
+			Url index = Url::fromString(indexStr).get();
+
+			std::string indexFilePath = (respFileUrl + index).toString(false);
+			std::cout << "Trying to load: " << indexFilePath << std::endl;
+			std::ifstream respFile(indexFilePath.c_str());
+
+			if (respFile.is_open()) {
+				fileContent = readAll(respFile);
+			}
+			break;
 		}
 	}
 

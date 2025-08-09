@@ -306,4 +306,12 @@ std::string strToLower(const std::string&);
 // Trims string from the specified character.
 std::string trimString(const std::string&, char);
 
+enum FSType {
+	FS_NONE,
+	FS_FILE,
+	FS_DIRECTORY,
+};
+// Check if a specified path string leads to a directory, file or nothing.
+FSType checkFSType(const std::string&);
+
 #endif
