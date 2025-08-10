@@ -55,6 +55,20 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 	return false;
 }
 
+bool checkIfMethodIsInByte(Webserv::HTTPMethod method, char configByte) {
+	switch (method) {
+	case Webserv::GET:
+		return HTTP_GET_FLAG & configByte;
+	case Webserv::POST:
+		return HTTP_POST_FLAG & configByte;
+	case Webserv::PUT:
+		return HTTP_PUT_FLAG & configByte;
+	case Webserv::DELETE:
+		return HTTP_DELETE_FLAG & configByte;
+	}
+	return false;
+}
+
 Option<Error> RequestHandler::handleRequest(FDTaskDispatcher& dispatcher) {
 	char buffer[MSG_BUF_SIZE] = {0}; // TODO: parametrize this
 	long readResult = read(clientSocketFd, (void*)buffer, MSG_BUF_SIZE);
@@ -76,6 +90,10 @@ Option<Error> RequestHandler::handleRequest(FDTaskDispatcher& dispatcher) {
 	// Analyze request
 	for (std::vector<std::pair<Url, Location> >::const_iterator it = sData.locations.begin(); it != sData.locations.end(); it++) {
 		if (request.getPath().matchSegments(it->first)) {
+			// Check if the request method is accepted
+			if (!checkIfMethodIsInByte(request.getMethod(), it->second.allowedMethods)) {
+				return Error(Error::GENERIC_ERROR, "Method is not allowed");
+			}
 			Option<Error> error = handleLocation(it->first, it->second, request, dispatcher);
 			if (error.isSome()) {
 				return error;
