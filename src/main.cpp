@@ -63,6 +63,5 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	// Webserv::ServerData data;
 	return 0;
 }

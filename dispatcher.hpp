@@ -99,4 +99,10 @@ namespace Webserv {
 	};
 }
 
+class Thing;
+class Thing {
+public:
+	SharedPtr<Thing> thing2;
+};
+
 #endif
