@@ -15,12 +15,11 @@
 #include "error.hpp"
 #include <sys/types.h>
 #include <vector>
-#ifdef LINUX
-#include <sys/epoll.h>
-#endif
-
 #ifdef OSX
  #include <sys/event.h>
+#endif
+#ifdef LINUX
+#include <sys/epoll.h>
 #endif
 
 #define FD_READABLE (1 << 0)
@@ -100,11 +99,11 @@ namespace Webserv {
 		std::map<int, UniquePtr<IFDTask> > activeHandlers;
 		std::vector<UniquePtr<IFDTask> > insertionQueue;
 		std::set<int> activeDescriptors;
-#ifdef LINUX
-		int epollFd;
-#endif
 #ifdef OSX
 		int kqueueFd;
+#endif
+#ifdef LINUX
+		int epollFd;
 #endif
 	};
 }

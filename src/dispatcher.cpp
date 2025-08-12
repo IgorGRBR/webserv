@@ -2,7 +2,12 @@
 #include "error.hpp"
 #include "ystl.hpp"
 #include <string>
+#ifdef OSX
+#include <sys/event.h>
+#endif
+#ifdef LINUX
 #include <sys/epoll.h>
+#endif
 #include <unistd.h>
 #include <utility>
 #include <vector>
@@ -30,7 +35,12 @@ FDTaskDispatcher::~FDTaskDispatcher() {
 		tryUnregisterDescriptor(it->first);
 		close(it->first);
 	}
+#ifdef OSX
+	close(kqueueFd);
+#endif
+#ifdef LINUX
 	close(epollFd);
+#endif
 }
 
 void FDTaskDispatcher::registerTask(IFDTask* task) {
@@ -104,13 +114,13 @@ Option<Webserv::Error> FDTaskDispatcher::update() {
 #endif
 #ifdef OSX
 	struct kevent kevents[EPOLL_EVENT_COUNT];
-	int fdNum = kevent(kq, NULL, 0, kevents, EPOLL_EVENT_COUNT, NULL);
+	int fdNum = kevent(kqueueFd, NULL, 0, kevents, EPOLL_EVENT_COUNT, NULL);
 	if (fdNum == -1) {
 		return Error(Error::GENERIC_ERROR, "kevent pooped itself");
 	}
 
 	for (int i = 0; i < fdNum; i++)
-		activeFds.push_back(events[i].data.fd);
+		activeFds.push_back(kevents[i].ident);
 #endif
 
 	for (uint i = 0; i < activeFds.size(); i++) {
