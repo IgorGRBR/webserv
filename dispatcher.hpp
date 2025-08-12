@@ -15,7 +15,13 @@
 #include "error.hpp"
 #include <sys/types.h>
 #include <vector>
+#ifdef LINUX
 #include <sys/epoll.h>
+#endif
+
+#ifdef OSX
+ #include <sys/event.h>
+#endif
 
 #define FD_READABLE (1 << 0)
 #define FD_WRITEABLE (1 << 1)
@@ -94,8 +100,12 @@ namespace Webserv {
 		std::map<int, UniquePtr<IFDTask> > activeHandlers;
 		std::vector<UniquePtr<IFDTask> > insertionQueue;
 		std::set<int> activeDescriptors;
-		struct epoll_event events[EPOLL_EVENT_COUNT];
+#ifdef LINUX
 		int epollFd;
+#endif
+#ifdef OSX
+		int kqueueFd;
+#endif
 	};
 }
 
