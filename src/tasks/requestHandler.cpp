@@ -137,6 +137,7 @@ Option<Error> RequestHandler::handleLocation(
 
 	// Here we should check if the path is a directory or a file, and *then* send back the response.
 	FSType fsType = checkFSType(respFilePath);
+	// HTTPContentType contentType;
 	switch (fsType) {
 	case FS_NONE:
 		fileContent = NONE;
@@ -145,6 +146,7 @@ Option<Error> RequestHandler::handleLocation(
 			std::ifstream respFile(respFilePath.c_str());
 			if (respFile.is_open()) {
 				fileContent = readAll(respFile);
+				// contentType = getContentType(respFileUrl);
 			}
 		}
 		break;
@@ -171,6 +173,7 @@ Option<Error> RequestHandler::handleLocation(
 			return response.getError();
 		}
 		response.getValue()->setResponseData(fileContent.get());
+		// response.getValue()->setResponseContentType(contentType);
 		dispatcher.registerTask(response.getValue());
 		return NONE;
 	}

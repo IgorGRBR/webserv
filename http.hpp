@@ -102,6 +102,22 @@ namespace Webserv {
 		std::string data;
 		std::map<std::string, std::string> headers;
 	};
+
+	enum HTTPContentType {
+		BYTE_STREAM,
+		PLAIN_TEXT,
+		HTML,
+		JS,
+		CSS,
+		PNG,
+		JPEG,
+	};
+
+	// Returns a string that represents an HTTP content type in the header.
+	std::string contentTypeString(HTTPContentType); // TODO
+
+	// Determines content type based on the file extension from the Url.
+	HTTPContentType getContentType(const Url&); // TODO
 }
 
 #endif

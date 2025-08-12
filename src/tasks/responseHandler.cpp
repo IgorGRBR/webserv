@@ -17,7 +17,8 @@ ResponseHandler::ResponseHandler(ServerData& sd, ConnectionInfo& ci):
 	ready(false),
 	sData(sd),
 	conn(ci),
-	responseCode(HTTP_OK)
+	responseCode(HTTP_OK),
+	contentType(BYTE_STREAM)
 {}
 
 Result<ResponseHandler*, Error> ResponseHandler::tryMake(ServerData& sd, ConnectionInfo& ci) {
@@ -28,6 +29,7 @@ Result<bool, Error> ResponseHandler::runTask(FDTaskDispatcher&) {
 	if (!ready) return true;
 	HTTPResponse response(Url(), responseCode);
 	response.setData(responseData);
+	// response.setContentType(contentTypeString(contentType));
 	std::string responseStr = response.build();
 
 	// Now respond!
@@ -59,6 +61,10 @@ void ResponseHandler::setResponseData(const std::string& data) {
 
 void ResponseHandler::setResponseCode(HTTPReturnCode code) {
 	responseCode = code;
+}
+
+void ResponseHandler::setResponseContentType(Webserv::HTTPContentType cType) {
+	contentType = cType;
 }
 
 ResponseHandler::~ResponseHandler() {

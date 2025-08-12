@@ -50,6 +50,7 @@ namespace Webserv {
 		void consumeFileData(const std::string&);
 		void setResponseData(const std::string&);
 		void setResponseCode(HTTPReturnCode);
+		void setResponseContentType(HTTPContentType);
 		~ResponseHandler();
 	private:
 		ResponseHandler(ServerData&, ConnectionInfo&);
@@ -59,6 +60,7 @@ namespace Webserv {
 		ConnectionInfo conn;
 		std::string responseData;
 		HTTPReturnCode responseCode;
+		HTTPContentType contentType;
 	};
 }
 
