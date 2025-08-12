@@ -192,3 +192,15 @@ std::string HTTPResponse::build() const {
 
 	return result.str();
 }
+
+std::string Webserv::contentTypeString(HTTPContentType cType) {
+	// TODO: implement this function
+	(void)cType;
+	return "";
+}
+
+Webserv::HTTPContentType Webserv::getContentType(const Url& url) {
+	// TODO: implement this function
+	(void)url;
+	return BYTE_STREAM;
+}
