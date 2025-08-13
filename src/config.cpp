@@ -279,7 +279,7 @@ Result<Config, ConfigError> Webserv::readConfigFromFile(std::string path) {
 	}
 
 	Config config;
-	config.defaultPort = 8080;
+	config.defaultPort = 8081;
 	std::vector<Token>::iterator tokenIt = tokens.begin();
 	std::vector<Token>::iterator tokenEnd = tokens.end();
 	ParserContext context = (ParserContext) {

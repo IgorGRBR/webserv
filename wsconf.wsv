@@ -1,10 +1,9 @@
 server (
 	serverName "A cool server"
-	listen 8064
+	listen 8082
 	location /awesome (
 		root ./exampleSite/
 		return 200
-		index awesome.html
 		dirListing
 		allowMethod POST
 		allowMethod GET
