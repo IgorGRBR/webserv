@@ -126,7 +126,7 @@ Option<Error> RequestHandler::handleLocation(
 
 	ConnectionInfo conn;
 	conn.connectionFd = clientSocketFd;
-	
+
 	Option<std::string> fileContent = NONE;
 	Url rootUrl = Url::fromString(root).get();
 	Url tail = request.getPath().tailDiff(path);
@@ -137,7 +137,7 @@ Option<Error> RequestHandler::handleLocation(
 
 	// Here we should check if the path is a directory or a file, and *then* send back the response.
 	FSType fsType = checkFSType(respFilePath);
-	// HTTPContentType contentType;
+	HTTPContentType contentType = BYTE_STREAM; //Temporary: contentType needs to be initialized in some way to avoid it being assigned a random value from the memory
 	switch (fsType) {
 	case FS_NONE:
 		fileContent = NONE;
@@ -146,7 +146,7 @@ Option<Error> RequestHandler::handleLocation(
 			std::ifstream respFile(respFilePath.c_str());
 			if (respFile.is_open()) {
 				fileContent = readAll(respFile);
-				// contentType = getContentType(respFileUrl);
+				contentType = getContentType(respFileUrl);
 			}
 		}
 		break;
@@ -173,13 +173,13 @@ Option<Error> RequestHandler::handleLocation(
 			return response.getError();
 		}
 		response.getValue()->setResponseData(fileContent.get());
-		// response.getValue()->setResponseContentType(contentType);
+		response.getValue()->setResponseContentType(contentType);
 		dispatcher.registerTask(response.getValue());
 		return NONE;
 	}
 	else {
 		return Error(Error::FILE_NOT_FOUND, respFilePath);
 	}
-	
+
 	return Error(Error::GENERIC_ERROR, "Not implemented");
 }
