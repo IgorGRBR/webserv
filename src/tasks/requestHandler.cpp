@@ -71,9 +71,9 @@ bool checkIfMethodIsInByte(Webserv::HTTPMethod method, char configByte) {
 
 Option<Error> RequestHandler::handleRequest(FDTaskDispatcher& dispatcher) {
 	char buffer[MSG_BUF_SIZE] = {0}; // TODO: parametrize this
-	long readResult = read(clientSocketFd, (void*)buffer, MSG_BUF_SIZE);
+	long _ = read(clientSocketFd, (void*)buffer, MSG_BUF_SIZE);
 
-	std::cout << "Read result: " << readResult << "\nContent:\n" << buffer << std::endl;
+	// std::cout << "Read result: " << readResult << "\nContent:\n" << buffer << std::endl;
 	std::string bufStr = std::string(buffer);
 
 	Result<HTTPRequest, HTTPRequestError> maybeRequest = HTTPRequest::fromText(bufStr);
@@ -182,4 +182,8 @@ Option<Error> RequestHandler::handleLocation(
 	}
 	
 	return Error(Error::GENERIC_ERROR, "Not implemented");
+}
+
+RequestHandler::~RequestHandler() {
+	std::cout << "Destroying request handler" << std::endl;
 }

@@ -33,6 +33,7 @@ namespace Webserv {
 		int getDescriptor() const;
 		IOMode getIOMode() const;
 		Option<Error> handleLocation(const Url&, const Config::Server::Location&, HTTPRequest&, FDTaskDispatcher&);
+		~RequestHandler();
 	private:
 		RequestHandler(const ServerData&, int);
 		

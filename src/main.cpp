@@ -1,4 +1,5 @@
 #include <iostream>
+#include <ostream>
 #include <vector>
 #include "error.hpp"
 #include "dispatcher.hpp"
@@ -22,6 +23,28 @@ void urlTests() {
 	std::cout << test.getPort() << std::endl;
 }
 
+void optionTests() {
+	Option<int> i = 32;
+	int iReal = i.get();
+	std::cout << "i is " << iReal << std::endl;
+
+	Option<double> d = 2.545;
+	double dReal = d.get();
+	std::cout << "d is " << dReal << std::endl;
+
+	Option<std::string> s = std::string("hello");
+	std::string sReal = s.get();
+	std::cout << "s is " << sReal << std::endl;
+
+	Option<std::vector<std::string> > v = std::vector<std::string>();
+	std::vector<std::string> vReal = v.get();
+	std::cout << "v is " << vReal.size() << std::endl;
+
+	Option<Url> u = Url::fromString("/happy");
+	Url uReal = u.get();
+	std::cout << "u is " << uReal.toString() << std::endl;
+}
+
 int main(int argc, char* argv[]) {
 	// Get the path of a config file
 	std::string configPath;
@@ -33,6 +56,8 @@ int main(int argc, char* argv[]) {
 	}
 
 	// urlTests();
+	// optionTests();
+	// return 0;
 	// Load the config
 	std::cout << "A webserver has started" << std::endl;
 	Config config = Webserv::readConfigFromFile(configPath).getValue(); // TODO: handle this better

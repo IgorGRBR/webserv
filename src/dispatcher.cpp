@@ -139,7 +139,6 @@ Option<Webserv::Error> FDTaskDispatcher::update() {
 			return Error(Error::GENERIC_ERROR, "Attempt to close non-existent descriptor");
 		}
 		activeHandlers.erase((*it)->getDescriptor());
-		it->move();
 	}
 
 	return NONE;

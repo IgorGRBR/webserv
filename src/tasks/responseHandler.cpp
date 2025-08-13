@@ -68,5 +68,6 @@ void ResponseHandler::setResponseContentType(Webserv::HTTPContentType cType) {
 }
 
 ResponseHandler::~ResponseHandler() {
+	std::cout << "Destroying response handler" << std::endl;
 	close(conn.connectionFd);
 }
