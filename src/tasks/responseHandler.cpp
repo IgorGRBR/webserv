@@ -65,7 +65,7 @@ void ResponseHandler::setResponseCode(HTTPReturnCode code) {
 
 void ResponseHandler::setResponseContentType(Webserv::HTTPContentType cType) {
 	contentType = cType;
-	std::cout << "cType: " << contentTypeString(cType) << std::endl;
+	std::cout << "(DEBUG) cType: " << contentTypeString(cType) << std::endl;
 }
 
 ResponseHandler::~ResponseHandler() {

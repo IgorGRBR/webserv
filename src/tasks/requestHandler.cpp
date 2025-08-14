@@ -137,7 +137,7 @@ Option<Error> RequestHandler::handleLocation(
 
 	// Here we should check if the path is a directory or a file, and *then* send back the response.
 	FSType fsType = checkFSType(respFilePath);
-	HTTPContentType contentType = BYTE_STREAM; //Temporary: contentType needs to be initialized in some way to avoid it being assigned a random value from the memory
+	HTTPContentType contentType = BYTE_STREAM;
 	switch (fsType) {
 	case FS_NONE:
 		fileContent = NONE;
@@ -160,9 +160,12 @@ Option<Error> RequestHandler::handleLocation(
 
 		if (respFile.is_open()) { // Try to load index file
 			fileContent = readAll(respFile);
+            Url indexFileUrl = respFileUrl + index;
+            contentType = getContentType(indexFileUrl);  // Added as a test to see if it's needed
 		}
 		else { // Try to create directory listing
 			fileContent = makeDirectoryListing(respFilePath, tail.getSegments().size() == 0);
+			contentType = HTML;  // Added as a test, to see if this is needed
 		}
 		break;
 	}
@@ -170,6 +173,7 @@ Option<Error> RequestHandler::handleLocation(
 	if (fileContent.isSome()) {
 		Result<ResponseHandler*, Error> response = ResponseHandler::tryMake(sData, conn);
 		if (response.isError()) {
+			std::cout << "ERROR: Failed to create ResponseHandler!" << std::endl;
 			return response.getError();
 		}
 		response.getValue()->setResponseData(fileContent.get());

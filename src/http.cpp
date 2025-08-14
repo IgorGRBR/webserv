@@ -216,37 +216,32 @@ std::string Webserv::contentTypeString(HTTPContentType cType) {
 
 Webserv::HTTPContentType Webserv::getContentType(const Url& url) {
 	// TODO: implement this function
-	std::cout << "getContentType called" << std::endl;
-	std::string extensions[] = {"", "txt", "html", "js", "css", "png", "jpeg"};
+	std::string extensions[] = {"txt", "html", "js", "css", "png", "jpeg"};
 	Option<std::string> urlOpt = url.getExtension();
 	if (urlOpt.isNone()) {
-		std::cout << "URL option: NONE" << std::endl;
 		return (BYTE_STREAM);
 	}
 	int	i = 0;
-	std::cout << "URL option: " << urlOpt.get() << std::endl;
 	std::string urlExt = urlOpt.get();
-	std::cout << "URL extension: " << urlExt << std::endl;
 	if (!urlExt.empty() && urlExt[0] == '.')
 		urlExt = urlExt.substr(1);
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < 6; i++) {
 		if (urlExt == extensions[i]){
 			break;
 		}
 	}
-	std::cout << "i: " << i << std::endl;
 	switch (i) {
-		case (1):
+		case (0):
 			return (PLAIN_TEXT);
-		case (2):
+		case (1):
 			return (HTML);
-		case (3):
+		case (2):
 			return (JS);
-		case (4):
+		case (3):
 			return (CSS);
-		case (5):
+		case (4):
 			return (PNG);
-		case (6):
+		case (5):
 			return (JPEG);
 		default:
 			return (BYTE_STREAM);
