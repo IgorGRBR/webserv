@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include "config.hpp"
 #include "error.hpp"
 #include "dispatcher.hpp"
 #include "tasks.hpp"
@@ -13,13 +14,18 @@ typedef Webserv::FDTaskDispatcher FDTaskDispatcher;
 typedef Webserv::ClientListener ClientListener;
 
 void urlTests() {
-	Webserv::Url test = Webserv::Url::fromString("localhost:655/search").get();
+	Webserv::Url test = Webserv::Url::fromString("localhost:655/search/thing").get();
 
 	std::cout << test.getProtocol() << std::endl;
 	for (std::vector<std::string>::const_iterator it = test.getSegments().begin(); it != test.getSegments().end(); it++) {
 		std::cout << "  " << *it << std::endl;
 	}
 	std::cout << test.getPort() << std::endl;
+
+	Url tail = test.tail();
+	for (std::vector<std::string>::const_iterator it = tail.getSegments().begin(); it != tail.getSegments().end(); it++) {
+		std::cout << "  " << *it << std::endl;
+	}
 }
 
 int main(int argc, char* argv[]) {
