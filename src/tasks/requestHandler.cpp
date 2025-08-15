@@ -126,7 +126,7 @@ Option<Error> RequestHandler::handleLocation(
 
 	ConnectionInfo conn;
 	conn.connectionFd = clientSocketFd;
-	
+
 	Option<std::string> fileContent = NONE;
 	Url rootUrl = Url::fromString(root).get();
 	Url tail = request.getPath().tailDiff(path);
@@ -137,7 +137,7 @@ Option<Error> RequestHandler::handleLocation(
 
 	// Here we should check if the path is a directory or a file, and *then* send back the response.
 	FSType fsType = checkFSType(respFilePath);
-	// HTTPContentType contentType;
+	HTTPContentType contentType = BYTE_STREAM;
 	switch (fsType) {
 	case FS_NONE:
 		fileContent = NONE;
@@ -146,7 +146,7 @@ Option<Error> RequestHandler::handleLocation(
 			std::ifstream respFile(respFilePath.c_str());
 			if (respFile.is_open()) {
 				fileContent = readAll(respFile);
-				// contentType = getContentType(respFileUrl);
+				contentType = getContentType(respFileUrl);
 			}
 		}
 		break;
@@ -160,9 +160,12 @@ Option<Error> RequestHandler::handleLocation(
 
 		if (respFile.is_open()) { // Try to load index file
 			fileContent = readAll(respFile);
+            Url indexFileUrl = respFileUrl + index;
+            contentType = getContentType(indexFileUrl);
 		}
 		else { // Try to create directory listing
 			fileContent = makeDirectoryListing(respFilePath, tail.getSegments().size() == 0);
+			contentType = HTML;
 		}
 		break;
 	}
@@ -170,16 +173,17 @@ Option<Error> RequestHandler::handleLocation(
 	if (fileContent.isSome()) {
 		Result<ResponseHandler*, Error> response = ResponseHandler::tryMake(sData, conn);
 		if (response.isError()) {
+			std::cout << "ERROR: Failed to create ResponseHandler!" << std::endl;
 			return response.getError();
 		}
 		response.getValue()->setResponseData(fileContent.get());
-		// response.getValue()->setResponseContentType(contentType);
+		response.getValue()->setResponseContentType(contentType);
 		dispatcher.registerTask(response.getValue());
 		return NONE;
 	}
 	else {
 		return Error(Error::FILE_NOT_FOUND, respFilePath);
 	}
-	
+
 	return Error(Error::GENERIC_ERROR, "Not implemented");
 }

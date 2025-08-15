@@ -58,7 +58,7 @@ Result<HTTPRequest, HTTPRequestError> Webserv::HTTPRequest::fromText(std::string
 	if (!std::getline(s, line)) {
 		return INVALID_REQUEST; // TODO: a better error message
 	}
-	
+
 	// Parse the start line
 	std::stringstream firstLineStream(line);
 	std::string word;
@@ -136,7 +136,7 @@ HTTPMethod Webserv::HTTPRequest::getMethod() const {
 };
 
 std::ostream& Webserv::operator<<(std::ostream& os, const HTTPRequest& req) {
-	os << "HTTPRequest(" << httpMethodName(req.getMethod()) << ", " 
+	os << "HTTPRequest(" << httpMethodName(req.getMethod()) << ", "
 		<< req.getPath().toString() << ", " << req.getData() << ")";
 	return os;
 };
@@ -194,13 +194,56 @@ std::string HTTPResponse::build() const {
 }
 
 std::string Webserv::contentTypeString(HTTPContentType cType) {
-	// TODO: implement this function
-	(void)cType;
+	switch (cType) {
+		case PLAIN_TEXT:
+			return ("text/plain");
+		case HTML:
+			return ("text/html");
+		case JS:
+			return ("text/javascript");
+		case CSS:
+			return ("text/css");
+		case PNG:
+			return ("image/png");
+		case JPEG:
+			return ("image/jpeg");
+		default:
+			return ("application/octet-stream");
+	};
 	return "";
 }
 
 Webserv::HTTPContentType Webserv::getContentType(const Url& url) {
-	// TODO: implement this function
-	(void)url;
-	return BYTE_STREAM;
+	std::string extensions[] = {"txt", "html", "js", "css", "png", "jpeg"};
+	Option<std::string> urlOpt = url.getExtension();
+	if (urlOpt.isNone()) {
+		return (BYTE_STREAM);
+	}
+	int	i = 0;
+	std::string urlExt = strToLower(urlOpt.get());
+
+	// TOASK: Why is this check here?
+	if (!urlExt.empty() && urlExt[0] == '.')
+		urlExt = urlExt.substr(1);
+	for (i = 0; i < 6; i++) {
+		if (urlExt == extensions[i]){
+			break;
+		}
+	}
+	switch (i) {
+		case (0):
+			return (PLAIN_TEXT);
+		case (1):
+			return (HTML);
+		case (2):
+			return (JS);
+		case (3):
+			return (CSS);
+		case (4):
+			return (PNG);
+		case (5):
+			return (JPEG);
+		default:
+			return (BYTE_STREAM);
+	}
 }

@@ -10,7 +10,7 @@ server (
 		allowMethod GET
 	)
 
-	location /awesome/crap/thingy (
+	location /awesome/thingy (
 		root ./exampleSite/test
 		return 200
 		index cool.html
