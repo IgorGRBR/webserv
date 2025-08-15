@@ -194,7 +194,6 @@ std::string HTTPResponse::build() const {
 }
 
 std::string Webserv::contentTypeString(HTTPContentType cType) {
-	// TODO: implement this function
 	switch (cType) {
 		case PLAIN_TEXT:
 			return ("text/plain");
@@ -215,14 +214,15 @@ std::string Webserv::contentTypeString(HTTPContentType cType) {
 }
 
 Webserv::HTTPContentType Webserv::getContentType(const Url& url) {
-	// TODO: implement this function
 	std::string extensions[] = {"txt", "html", "js", "css", "png", "jpeg"};
 	Option<std::string> urlOpt = url.getExtension();
 	if (urlOpt.isNone()) {
 		return (BYTE_STREAM);
 	}
 	int	i = 0;
-	std::string urlExt = urlOpt.get();
+	std::string urlExt = strToLower(urlOpt.get());
+
+	// TOASK: Why is this check here?
 	if (!urlExt.empty() && urlExt[0] == '.')
 		urlExt = urlExt.substr(1);
 	for (i = 0; i < 6; i++) {

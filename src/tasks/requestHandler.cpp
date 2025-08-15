@@ -161,11 +161,11 @@ Option<Error> RequestHandler::handleLocation(
 		if (respFile.is_open()) { // Try to load index file
 			fileContent = readAll(respFile);
             Url indexFileUrl = respFileUrl + index;
-            contentType = getContentType(indexFileUrl);  // Added as a test to see if it's needed
+            contentType = getContentType(indexFileUrl);
 		}
 		else { // Try to create directory listing
 			fileContent = makeDirectoryListing(respFilePath, tail.getSegments().size() == 0);
-			contentType = HTML;  // Added as a test, to see if this is needed
+			contentType = HTML;
 		}
 		break;
 	}

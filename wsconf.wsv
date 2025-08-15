@@ -1,6 +1,6 @@
 server (
 	serverName "A cool server"
-	listen 8080
+	listen 8064
 	location /awesome (
 		root ./exampleSite/
 		return 200
