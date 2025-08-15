@@ -1,3 +1,4 @@
+#include "locationTree.hpp"
 #include "webserv.hpp"
 #include "config.hpp"
 #include "error.hpp"
@@ -88,21 +89,20 @@ Option<Error> RequestHandler::handleRequest(FDTaskDispatcher& dispatcher) {
 	}
 
 	// Analyze request
-	for (std::vector<std::pair<Url, Location> >::const_iterator it = sData.locations.begin(); it != sData.locations.end(); it++) {
-		if (request.getPath().matchSegments(it->first)) {
-			// Check if the request method is accepted
-			if (!checkIfMethodIsInByte(request.getMethod(), it->second.allowedMethods)) {
-				return Error(Error::GENERIC_ERROR, "Method is not allowed");
-			}
-			Option<Error> error = handleLocation(it->first, it->second, request, dispatcher);
-			if (error.isSome()) {
-				return error;
-			}
+	Option<LocationTreeNode::LocationSearchResult> maybeLocation = sData.locations.tryFindLocation(request.getPath());
+	if (maybeLocation.isSome()) {
+		LocationTreeNode::LocationSearchResult result = maybeLocation.get();
+		const Location* location = result.location;
+		if (!checkIfMethodIsInByte(request.getMethod(), location->allowedMethods)) {
+				return Error(Error::GENERIC_ERROR, "HTTP method is not allowed");
+		};
+		Option<Error> maybeError = handleLocation(result.locationPath, *location, request, dispatcher);
+		if (maybeError.isSome())
+			return maybeError;
 
-			return NONE;
-		}
+		return NONE;
 	}
-	return NONE;
+	return Error(Error::RESOURCE_NOT_FOUND, "Could not find a resource on the specified path.");
 }
 
 Option<Error> RequestHandler::handleLocation(

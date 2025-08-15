@@ -145,3 +145,11 @@ Option<std::string> Url::getExtension() const {
 	}
 	return line;
 }
+
+Url Url::tail() const {
+	Url newUrl = *this;
+	if (newUrl.segments.size() > 0) {
+		newUrl.segments.erase(newUrl.segments.begin());
+	}
+	return newUrl;
+}

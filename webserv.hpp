@@ -5,6 +5,7 @@
 #include <fstream>
 #include "config.hpp"
 #include "error.hpp"
+#include "locationTree.hpp"
 #include "url.hpp"
 #include <netinet/in.h>
 #include <string>
@@ -36,7 +37,7 @@ namespace Webserv {
 		sockaddr_in address;
 		uint addressLen;
 		Url rootPath;
-		std::vector<std::pair<Url, Config::Server::Location> > locations;
+		LocationTreeNode locations;
 	};
 
 	// This struct will contain all the necessary details about current connection to the client.

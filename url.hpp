@@ -57,6 +57,9 @@ namespace Webserv {
 		// Returns the tail of the longer url as a vector of strings from both, if both urls have matching starting segments.
 		// Otherwise, returns an empty `Url`.
 		std::vector<std::string> tailDiffVec(const Url&) const;
+
+		// Returns the tail of the url (Url minus the first segment element).
+		Url tail() const;
 	private:
 		std::vector<std::string> segments;
 		std::string protocol;
