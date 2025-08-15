@@ -6,7 +6,6 @@
 #include "ystl.hpp"
 #include <cstring>
 #include <unistd.h>
-#include <vector>
 #include "tasks.hpp"
 
 typedef Webserv::Error Error;
@@ -36,7 +35,7 @@ Result<ClientListener*, Error> ClientListener::tryMake(Config::Server &config, u
 		if (url.isNone()) {
 			return Error(Error::PATH_PARSING_ERROR);
 		}
-		sData.locations.push_back(std::pair<Url, Location>(url.get(), it->second));
+		sData.locations.insertLocation(url.get(), &it->second);
 	}
 
 	// So, lets start with making a socket object

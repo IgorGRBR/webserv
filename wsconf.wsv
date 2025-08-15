@@ -9,4 +9,10 @@ server (
 		allowMethod POST
 		allowMethod GET
 	)
+
+	location /awesome/thingy (
+		root ./exampleSite/test
+		return 200
+		index cool.html
+	)
 )
