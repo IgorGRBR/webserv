@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <fstream>
 #include "config.hpp"
+#include "dispatcher.hpp"
 #include "error.hpp"
 #include "locationTree.hpp"
 #include "url.hpp"
@@ -58,6 +59,8 @@ namespace Webserv {
 
 	// Reads everything from the input stream.
 	std::string readAll(std::ifstream&);
+
+	Result<IFDTask*, Error> handleRequest(HTTPRequest& request, ServerData& sData, int clientSocketFd);
 }
 
 #endif

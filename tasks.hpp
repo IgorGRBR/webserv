@@ -29,15 +29,15 @@ namespace Webserv {
 	public:
 		static Result<RequestHandler*, Error> tryMake(int, ServerData& data);
 		Result<bool, Error> runTask(FDTaskDispatcher&);
-		Option<Error> handleRequest(FDTaskDispatcher&);
 		int getDescriptor() const;
 		IOMode getIOMode() const;
-		Option<Error> handleLocation(const Url&, const Config::Server::Location&, HTTPRequest&, FDTaskDispatcher&);
 	private:
 		RequestHandler(const ServerData&, int);
 		
 		ServerData sData;
 		int clientSocketFd;
+		Option<HTTPRequest> request;
+		bool chunked;
 	};
 
 	// `ResponseHandler` is a task that is responsible for building a HTTP response and sending it back to the client.

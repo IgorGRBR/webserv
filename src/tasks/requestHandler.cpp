@@ -1,16 +1,12 @@
-#include "locationTree.hpp"
 #include "webserv.hpp"
 #include "config.hpp"
 #include "error.hpp"
 #include "dispatcher.hpp"
 #include "http.hpp"
-#include "url.hpp"
 #include "webserv.hpp"
 #include "ystl.hpp"
 #include <cstring>
-#include <fstream>
 #include <unistd.h>
-#include <vector>
 #include "tasks.hpp"
 
 typedef Webserv::Error Error;
@@ -34,163 +30,38 @@ Webserv::IOMode RequestHandler::getIOMode() const {
 }
 
 Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
-	Option<Error> error = handleRequest(dispatcher);
-
-	if (error.isSome()) {
-		if (error.get().tag == Error::SHUTDOWN_SIGNAL) {
-			return error.get();
-		}
-
-		std::string respContent = makeErrorPage(error.get());
-		ConnectionInfo conn;
-		conn.connectionFd = clientSocketFd;
-		Result<ResponseHandler*, Error> response = ResponseHandler::tryMake(sData, conn);
-		if (response.isError()) {
-			return response.getError();
-		}
-		response.getValue()->setResponseData(respContent);
-		response.getValue()->setResponseCode(error.get().getHTTPCode());
-		dispatcher.registerTask(response.getValue());
-	}
-
-	return false;
-}
-
-bool checkIfMethodIsInByte(Webserv::HTTPMethod method, char configByte) {
-	switch (method) {
-	case Webserv::GET:
-		return HTTP_GET_FLAG & configByte;
-	case Webserv::POST:
-		return HTTP_POST_FLAG & configByte;
-	case Webserv::PUT:
-		return HTTP_PUT_FLAG & configByte;
-	case Webserv::DELETE:
-		return HTTP_DELETE_FLAG & configByte;
-	}
-	return false;
-}
-
-Option<Error> RequestHandler::handleRequest(FDTaskDispatcher& dispatcher) {
-	char* buffer = new char[sData.maxRequestSize];
+	char* buffer = new char[sData.maxRequestSize + 1];
 	long readResult = read(clientSocketFd, (void*)buffer, sData.maxRequestSize);
 
-#ifdef DEBUG
-	std::cout << "Read result: " << readResult << "\nContent:\n" << buffer << std::endl;
-#endif
-	if (readResult == sData.maxRequestSize && buffer[readResult - 1] != '\0') {
+	if (readResult == sData.maxRequestSize && buffer[readResult] != '\0') {
 		delete[] buffer;
 		return Error(Error::GENERIC_ERROR, "Read result was larger than allowed.");
 	}
+	buffer[readResult] = '\0';
+
 	std::string bufStr = std::string(buffer);
 	delete[] buffer;
+#ifdef DEBUG
+	std::cout << "Read result: " << readResult << "\nContent:\n" << bufStr << std::endl;
+#endif
 
 	Result<HTTPRequest, HTTPRequestError> maybeRequest = HTTPRequest::fromText(bufStr);
 	if (maybeRequest.isError()) {
 		return Error(Error::HTTP_ERROR, httpRequestErrorMessage(maybeRequest.getError()));
 	}
 
-	HTTPRequest request = maybeRequest.getValue();
-	std::cout << "Got this request:" << request << std::endl;
-	if (request.getData() == "close") {
+	request = maybeRequest.getValue();
+	std::cout << "Got this request:" << request.get() << std::endl;
+	if (request.get().getData() == "close") {
 		return Error(Error::SHUTDOWN_SIGNAL);
 	}
 
-	// Analyze request
-	Option<LocationTreeNode::LocationSearchResult> maybeLocation = sData.locations.tryFindLocation(request.getPath());
-	if (maybeLocation.isSome()) {
-		LocationTreeNode::LocationSearchResult result = maybeLocation.get();
-		const Location* location = result.location;
-		if (!checkIfMethodIsInByte(request.getMethod(), location->allowedMethods)) {
-				return Error(Error::GENERIC_ERROR, "HTTP method is not allowed");
-		};
-		Option<Error> maybeError = handleLocation(result.locationPath, *location, request, dispatcher);
-		if (maybeError.isSome())
-			return maybeError;
+	Result<IFDTask*, Error> nextTask = handleRequest(request.get(), sData, clientSocketFd);
 
-		return NONE;
+	if (nextTask.isError()) {
+		return nextTask.getError();
 	}
-	return Error(Error::RESOURCE_NOT_FOUND, "Could not find a resource on the specified path.");
-}
+	dispatcher.registerTask(nextTask.getValue());
 
-Option<Error> RequestHandler::handleLocation(
-	const Url& path,
-	const Config::Server::Location& location,
-	HTTPRequest& request,
-	FDTaskDispatcher& dispatcher
-) {
-	std::string root;
-
-	// TODO: maybe move this check into configuration parsing step?
-	if (location.root.isSome()) {
-		root = location.root.get();
-	}
-	else if (sData.config.defaultRoot.isSome()) {
-		root = sData.config.defaultRoot.get();
-	}
-	else {
-		return Error(Error::HTTP_ERROR, "Missing root location in configuration");
-	}
-
-	ConnectionInfo conn;
-	conn.connectionFd = clientSocketFd;
-
-	Option<std::string> fileContent = NONE;
-	Url rootUrl = Url::fromString(root).get();
-	Url tail = request.getPath().tailDiff(path);
-
-	Url respFileUrl = rootUrl + tail;
-	std::string respFilePath = respFileUrl.toString(false);
-	std::cout << "Trying to load: " << respFilePath << std::endl;
-
-	// Here we should check if the path is a directory or a file, and *then* send back the response.
-	FSType fsType = checkFSType(respFilePath);
-	HTTPContentType contentType = BYTE_STREAM;
-	switch (fsType) {
-	case FS_NONE:
-		fileContent = NONE;
-		break;
-	case FS_FILE: {
-			std::ifstream respFile(respFilePath.c_str());
-			if (respFile.is_open()) {
-				fileContent = readAll(respFile);
-				contentType = getContentType(respFileUrl);
-			}
-		}
-		break;
-	case FS_DIRECTORY:
-		std::string indexStr = location.index.getOr("index.html");
-		Url index = Url::fromString(indexStr).get();
-
-		std::string indexFilePath = (respFileUrl + index).toString(false);
-		std::cout << "Trying to load: " << indexFilePath << std::endl;
-		std::ifstream respFile(indexFilePath.c_str());
-
-		if (respFile.is_open()) { // Try to load index file
-			fileContent = readAll(respFile);
-            Url indexFileUrl = respFileUrl + index;
-            contentType = getContentType(indexFileUrl);
-		}
-		else { // Try to create directory listing
-			fileContent = makeDirectoryListing(respFilePath, tail.getSegments().size() == 0);
-			contentType = HTML;
-		}
-		break;
-	}
-
-	if (fileContent.isSome()) {
-		Result<ResponseHandler*, Error> response = ResponseHandler::tryMake(sData, conn);
-		if (response.isError()) {
-			std::cout << "ERROR: Failed to create ResponseHandler!" << std::endl;
-			return response.getError();
-		}
-		response.getValue()->setResponseData(fileContent.get());
-		response.getValue()->setResponseContentType(contentType);
-		dispatcher.registerTask(response.getValue());
-		return NONE;
-	}
-	else {
-		return Error(Error::FILE_NOT_FOUND, respFilePath);
-	}
-
-	return Error(Error::GENERIC_ERROR, "Not implemented");
+	return false;
 }
