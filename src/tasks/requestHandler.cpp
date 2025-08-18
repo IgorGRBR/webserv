@@ -71,11 +71,18 @@ bool checkIfMethodIsInByte(Webserv::HTTPMethod method, char configByte) {
 }
 
 Option<Error> RequestHandler::handleRequest(FDTaskDispatcher& dispatcher) {
-	char buffer[MSG_BUF_SIZE] = {0}; // TODO: parametrize this
-	long readResult = read(clientSocketFd, (void*)buffer, MSG_BUF_SIZE);
+	char* buffer = new char[sData.maxRequestSize];
+	long readResult = read(clientSocketFd, (void*)buffer, sData.maxRequestSize);
 
+#ifdef DEBUG
 	std::cout << "Read result: " << readResult << "\nContent:\n" << buffer << std::endl;
+#endif
+	if (readResult == sData.maxRequestSize && buffer[readResult - 1] != '\0') {
+		delete[] buffer;
+		return Error(Error::GENERIC_ERROR, "Read result was larger than allowed.");
+	}
 	std::string bufStr = std::string(buffer);
+	delete[] buffer;
 
 	Result<HTTPRequest, HTTPRequestError> maybeRequest = HTTPRequest::fromText(bufStr);
 	if (maybeRequest.isError()) {

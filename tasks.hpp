@@ -12,7 +12,7 @@ namespace Webserv {
 	// This task is constantly alive and active.
 	class ClientListener: public IFDTask {
 	public:
-		static Result<ClientListener*, Error> tryMake(Config::Server&, ushort);
+		static Result<ClientListener*, Error> tryMake(Config&, Config::Server&);
 		Result<bool, Error> runTask(FDTaskDispatcher&);
 		int getDescriptor() const;
 		IOMode getIOMode() const;

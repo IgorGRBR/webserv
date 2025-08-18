@@ -205,6 +205,15 @@ ServerResult parseServerDirective(ParserContext& ctx) {
 					if (ctx.it->getTag() != Webserv::Token::SYMBOL) return Webserv::UNEXPECTED_TOKEN;
 					server.defaultRoot = Option<std::string>(ctx.it->getSym());
 				}
+				else if (sym == "maxRequestSize") {
+					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
+					if (ctx.it->getTag() != Webserv::Token::SYMBOL) return Webserv::UNEXPECTED_TOKEN;
+					std::stringstream s(std::string(ctx.it->getSym()));
+
+					uint maxSize;
+					s >> maxSize;
+					server.maxRequestSize = maxSize;
+				}
 				else return Webserv::UNEXPECTED_SYMBOL;
 				break;
 			case Webserv::Token::OPAREN:
@@ -237,6 +246,15 @@ ParseResult parseConfig(ParserContext& ctx) {
 						else return res.getError();
 					}
 					else return Webserv::UNEXPECTED_TOKEN;
+				}
+				else if (sym == "maxRequestSize") {
+					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
+					if (ctx.it->getTag() != Webserv::Token::SYMBOL) return Webserv::UNEXPECTED_TOKEN;
+					std::stringstream s(std::string(ctx.it->getSym()));
+
+					uint maxSize;
+					s >> maxSize;
+					ctx.config.maxRequestSize = maxSize;
 				}
 				else return Webserv::UNEXPECTED_SYMBOL;
 				break;
@@ -280,6 +298,7 @@ Result<Config, ConfigError> Webserv::readConfigFromFile(std::string path) {
 
 	Config config;
 	config.defaultPort = 8080;
+	config.maxRequestSize = 1000000; // TODO: maybe move this to a configurable macro?
 	std::vector<Token>::iterator tokenIt = tokens.begin();
 	std::vector<Token>::iterator tokenEnd = tokens.end();
 	ParserContext context = (ParserContext) {

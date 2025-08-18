@@ -48,8 +48,7 @@ int main(int argc, char* argv[]) {
 	// Configure the initial client connection listeners
 	FDTaskDispatcher dispatcher;
 	for (uint i = 0; i < config.servers.size(); i++) {
-		Result<ClientListener*, Error> maybeListener = ClientListener::tryMake(config.servers[i],
-			config.servers[i].port.getOr(config.defaultPort));
+		Result<ClientListener*, Error> maybeListener = ClientListener::tryMake(config, config.servers[i]);
 		if (maybeListener.isError()) {
 			std::cout << "Critical error when trying to construct a client listener: "
 				<< maybeListener.getError().getTagMessage() << std::endl;

@@ -55,13 +55,19 @@ namespace Webserv {
 
 			// Default root path. Only works if there is no "/" location defined. Also not yet implemented.
 			Option<std::string> defaultRoot;
+
+			// Max HTTP request message body of the server.
+			Option<uint> maxRequestSize;
 		};
 
-		// List of servers
+		// List of servers.
 		std::vector<Server> servers;
 		
-		// Default port of each server
+		// Default port of each server.
 		ushort defaultPort;
+
+		// Default max HTTP request message body.
+		uint maxRequestSize;
 	};
 
 	// Token parsing stuff. Only used to parse the configuration, which is basically solved at this point, so no
