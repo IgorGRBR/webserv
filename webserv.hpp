@@ -37,6 +37,7 @@ namespace Webserv {
 		sockaddr_in address;
 		uint addressLen;
 		Url rootPath;
+		uint maxRequestSize;
 		LocationTreeNode locations;
 	};
 

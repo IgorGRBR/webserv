@@ -1,6 +1,7 @@
 server (
 	serverName "A cool server"
 	listen 8064
+	maxRequestSize 1024
 	location /awesome (
 		root ./exampleSite/
 		return 200
