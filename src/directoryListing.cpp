@@ -3,26 +3,26 @@
 #include <sys/stat.h>
 #include <ctime>
 #include <sstream>
-#include <iomanip> // Still available in C++98 for setw
+#include <iomanip> // Available in C++98 for setw
 #include <string>
 
-std::string Webserv::makeDirectoryListing(const std::string &path, bool topLevel) {
+std::string Webserv::makeDirectoryListing(const std::string &diskPath, const std::string &urlPath, bool topLevel) {
     (void)topLevel;
-    DIR *dir = opendir(path.c_str());
+    DIR *dir = opendir(diskPath.c_str());
     if (!dir) {
-        return "<html><body>Could not open directory: " + path + "</body></html>";
+        return "<html><body>Could not open directory: " + diskPath + "</body></html>";
     }
 
     std::ostringstream html;
-    html << "<html><head><title>Index of " << path << "</title></head><body>";
-    html << "<h1>Index of " << path << "</h1><hr><pre>";
+    html << "<html><head><title>Index of " << urlPath << "</title></head><body>";
+    html << "<h1>Index of " << urlPath << "</h1><hr><pre>";
 
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL) {
         std::string name = entry->d_name;
         if (name == "." || name == "..") continue;
 
-        std::string fullpath = path;
+        std::string fullpath = diskPath;
         if (fullpath[fullpath.size() - 1] != '/')
             fullpath += "/";
         fullpath += name;
@@ -40,10 +40,18 @@ std::string Webserv::makeDirectoryListing(const std::string &path, bool topLevel
         if (S_ISDIR(st.st_mode))
             displayName += "/";
 
-        html << "<a href=\"" << displayName << "\">" << displayName << "</a>";
+        // Build correct URL href for the link
+        std::string href = urlPath;
+        if (href.empty() || href[href.size() - 1] != '/')
+            href += "/";
+        href += name;
+        if (S_ISDIR(st.st_mode))
+            href += "/";
+
+        html << "<a href=\"" << href << "\">" << displayName << "</a>";
         int spaces = 50 - static_cast<int>(displayName.length());
         if (spaces < 1) spaces = 1;
-        html << std::string(spaces, ' ') 
+        html << std::string(spaces, ' ')
              << timebuf << "  " << st.st_size << "\n";
     }
 

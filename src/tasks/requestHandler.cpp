@@ -71,10 +71,14 @@ bool checkIfMethodIsInByte(Webserv::HTTPMethod method, char configByte) {
 
 Option<Error> RequestHandler::handleRequest(FDTaskDispatcher& dispatcher) {
 	char buffer[MSG_BUF_SIZE] = {0}; // TODO: parametrize this
-	long readResult = read(clientSocketFd, (void*)buffer, MSG_BUF_SIZE);
+	ssize_t bytesRead = read(clientSocketFd, (void*)buffer, MSG_BUF_SIZE);
+if (bytesRead <= 0) {
+    return Error(Error::GENERIC_ERROR, "Failed to read request from client");
+}
+std::string bufStr(buffer, bytesRead);
 
-	std::cout << "Read result: " << readResult << "\nContent:\n" << buffer << std::endl;
-	std::string bufStr = std::string(buffer);
+
+//	std::string bufStr = std::string(buffer);
 
 	Result<HTTPRequest, HTTPRequestError> maybeRequest = HTTPRequest::fromText(bufStr);
 	if (maybeRequest.isError()) {
@@ -113,7 +117,6 @@ Option<Error> RequestHandler::handleLocation(
 ) {
 	std::string root;
 
-	// TODO: maybe move this check into configuration parsing step?
 	if (location.root.isSome()) {
 		root = location.root.get();
 	}
@@ -126,7 +129,7 @@ Option<Error> RequestHandler::handleLocation(
 
 	ConnectionInfo conn;
 	conn.connectionFd = clientSocketFd;
-	
+
 	Option<std::string> fileContent = NONE;
 	Url rootUrl = Url::fromString(root).get();
 	Url tail = request.getPath().tailDiff(path);
@@ -135,20 +138,20 @@ Option<Error> RequestHandler::handleLocation(
 	std::string respFilePath = respFileUrl.toString(false);
 	std::cout << "Trying to load: " << respFilePath << std::endl;
 
-	// Here we should check if the path is a directory or a file, and *then* send back the response.
 	FSType fsType = checkFSType(respFilePath);
+
 	switch (fsType) {
 	case FS_NONE:
 		fileContent = NONE;
 		break;
 	case FS_FILE: {
-			std::ifstream respFile(respFilePath.c_str());
-			if (respFile.is_open()) {
-				fileContent = readAll(respFile);
-			}
+		std::ifstream respFile(respFilePath.c_str());
+		if (respFile.is_open()) {
+			fileContent = readAll(respFile);
 		}
 		break;
-	case FS_DIRECTORY:
+	}
+	case FS_DIRECTORY: {
 		std::string indexStr = location.index.getOr("index.html");
 		Url index = Url::fromString(indexStr).get();
 
@@ -156,13 +159,15 @@ Option<Error> RequestHandler::handleLocation(
 		std::cout << "Trying to load: " << indexFilePath << std::endl;
 		std::ifstream respFile(indexFilePath.c_str());
 
-		if (respFile.is_open()) { // Try to load index file
+		if (respFile.is_open()) {
 			fileContent = readAll(respFile);
 		}
-		else { // Try to create directory listing
-			fileContent = makeDirectoryListing(respFilePath, tail.getSegments().size() == 0);
+		else {
+			std::string urlPath = request.getPath().toString(true);
+			fileContent = makeDirectoryListing(respFilePath, urlPath, tail.getSegments().size() == 0);
 		}
 		break;
+	}
 	}
 
 	if (fileContent.isSome()) {
@@ -177,6 +182,10 @@ Option<Error> RequestHandler::handleLocation(
 	else {
 		return Error(Error::FILE_NOT_FOUND, respFilePath);
 	}
-	
+
 	return Error(Error::GENERIC_ERROR, "Not implemented");
 }
+
+// RequestHandler::~RequestHandler() {
+// 	std::cout << "Destroying request handler" << std::endl;
+// } 
