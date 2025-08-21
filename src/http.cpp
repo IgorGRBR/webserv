@@ -15,15 +15,15 @@ typedef Webserv::Url Url;
 
 const char* Webserv::httpMethodName(HTTPMethod method) {
 	switch (method) {
-        case GET:
+		case GET:
 			return "GET";
-        case POST:
+		case POST:
 			return "POST";
-        case PUT:
+		case PUT:
 			return "PUT";
-        case DELETE:
+		case DELETE:
 			return "DELETE";
-        }
+		}
 	return "UNKNOWN";
 };
 
@@ -38,9 +38,9 @@ Option<HTTPMethod> Webserv::httpMethodFromStr(const std::string &str) {
 
 const char* Webserv::httpRequestErrorMessage(HTTPRequestError err) {
 	switch (err) {
-        case INVALID_REQUEST:
+		case INVALID_REQUEST:
 			return "Invalid request";
-        case NO_DATA_SEGMENT:
+		case NO_DATA_SEGMENT:
 			return "Data segment of the request is missing";
 		case INVALID_METHOD:
 			return "Invalid HTTP method received";
@@ -155,18 +155,134 @@ void HTTPResponse::setContentType(const std::string& ctype) {
 
 const char* Webserv::httpReturnCodeMessage(HTTPReturnCode retCode) {
 	switch (retCode) {
-        case HTTP_NONE:
+		case HTTP_NONE:
 			return "None";
-        case HTTP_OK:
+		case HTTP_OK:
 			return "Ok";
-        case HTTP_INTERNAL_SERVER_ERROR:
+		case HTTP_INTERNAL_SERVER_ERROR:
 			return "Internal server error";
-        case HTTP_FORBIDDEN:
+		case HTTP_FORBIDDEN:
 			return "Forbidden";
-        case HTTP_NOT_FOUND:
+		case HTTP_NOT_FOUND:
 			return "Not found";
-	}
-	return "Unknown";
+		case HTTP_CONTINUE:
+			return "Continue";
+		case HTTP_SWITCHING_PROTOCOLS:
+			return "Switching protocols";
+		case HTTP_PROCESSING:
+			return "Processing";
+		case HTTP_EARLY_HINTS:
+			return "Early hints";
+		case HTTP_CREATED:
+			return "Created";
+		case HTTP_ACCEPTED:
+			return "Accepted";
+		case HTTP_NON_AUTHORITATIVE_INFORMATION:
+			return "Non-Autoritative Information";
+		case HTTP_NO_CONTENT:
+			return "No content";
+		case HTTP_RESET_CONTENT:
+			return "Reset content";
+		case HTTP_PARTIAL_CONTENT:
+			return "Partial content";
+		case HTTP_MULTI_STATUS:
+			return "Multi-status";
+		case HTTP_ALREADY_REPORTED:
+			return "Already reported";
+		case HTTP_IM_USED:
+			return "IM used";
+		case HTTP_MULTIPLE_CHOICES:
+			return "Multiple choices";
+		case HTTP_MOVED_PERMANENTLY:
+			return "Moved permanently";
+		case HTTP_FOUND:
+			return "Found";
+		case HTTP_SEE_OTHER:
+			return "See other";
+		case HTTP_NOT_MODIFIED:
+			return "Not modified";
+		case HTTP_USE_PROXY:
+			return "Use proxy";
+		case HTTP_TEMPORARY_REDIRECT:
+			return "Temporary redirect";
+		case HTTP_PERMANENT_REDIRECT:
+			return "Permanent redirect";
+		case HTTP_BAD_REQUEST:
+			return "Bad request";
+		case HTTP_UNATHORIZED:
+			return "Unauthorized";
+		case HTTP_PAYMENT_REQUIRED:
+			return "Payment required";
+		case HTTP_METHOD_NOT_ALLOWED:
+			return "Method not allowed";
+		case HTTP_NOT_ACCEPTABLE:
+			return "Not acceptable";
+		case HTTP_PROXY_AUTHENTICATION_REQUIRED:
+			return "Proxy authentication required";
+		case HTTP_REQUEST_TIMEOUT:
+			return "Request timeout";
+		case HTTP_CONFLICT:
+			return "Conflict";
+		case HTTP_GONE:
+			return "Gone";
+		case HTTP_LENGTH_REQUIRED:
+			return "Length required";
+		case HTTP_PRECONDITION_FAILED:
+			return "Precondition required";
+		case HTTP_PAYLOAD_TOO_LARGE:
+			return "Payload too large";
+		case HTTP_URI_TOO_LONG:
+			return "URI too long";
+		case HTTP_UNSUPPORTED_MEDIA_TYPE:
+			return "Unsupported media type";
+		case HTTP_RANGE_NOT_SATISFIABLE:
+			return "Range not satisfiable";
+		case HTTP_EXPECTATION_FAILED:
+			return "Expectation failed";
+		case HTTP_IM_A_TEAPOT:
+			return "I'm a teapot";
+		case HTTP_MISDIRECTED_REQUEST:
+			return "Misdirected request";
+		case HTTP_UNPROCESSABLE_CONTENT:
+			return "Unprocessable content";
+		case HTTP_LOCKED:
+			return "Locked";
+		case HTTP_FAILED_DEPENDENCY:
+			return "Failed dependency";
+		case HTTP_TOO_EARLY:
+			return "Too early";
+		case HTTP_UPGRADE_REQUIRED:
+			return "Upgrade required";
+		case HTTP_PRECONDITION_REQUIRED:
+			return "Precondition required";
+		case HTTP_TOO_MANY_REQUESTS:
+			return "Too many requests";
+		case HTTP_REQUEST_HEADER_FIELDS_TOO_LARGE:
+			return "Request header fields too large";
+		case HTTP_UNAVAILABLE_FOR_LEGAL_REASONS:
+			return "Unavailable for legal reasons";
+		case HTTP_NOT_IMPLEMENTED:
+			return "Not implemented";
+		case HTTP_BAD_GATEWAY:
+			return "Bad gateway";
+		case HTTP_SERVICE_UNAVAILABLE:
+			return "Service unavailable";
+		case HTTP_GATEWAY_TIMEOUT:
+			return "Gateway timeout";
+		case HTTP_VERSION_NOT_SUPPORTED:
+			return "HTTP version not supported";
+		case HTTP_VARIANT_ALSO_NEGOTIATES:
+			return "Variant also negotiates";
+		case HTTP_INSUFFICIENT_STORAGE:
+			return "Insufficient storage";
+		case HTTP_LOOP_DETECTED:
+			return "Loop detected";
+		case HTTP_NOT_EXTENDED:
+			return "Not extended";
+		case HTTP_NETWORK_AUTHENTICATION_REQUIRED:
+			return "Network authentication required";
+		}
+		return "Unknown";
 }
 
 void HTTPResponse::setHeader(const std::string& key, const std::string& value) {
