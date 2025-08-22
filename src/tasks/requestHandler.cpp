@@ -138,3 +138,7 @@ Option<Error> RequestHandler::sendError(FDTaskDispatcher& dispatcher, Error erro
 	dispatcher.registerTask(maybeRequest.getValue());
 	return NONE;
 }
+
+RequestHandler::~RequestHandler() {
+	std::cout << "Destroying request handler" << std::endl;
+}
