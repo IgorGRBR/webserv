@@ -4,6 +4,7 @@
 #include "dispatcher.hpp"
 #include "http.hpp"
 #include "webserv.hpp"
+#include <vector>
 
 namespace Webserv {
 
@@ -23,6 +24,24 @@ namespace Webserv {
 		int socketFd;
 	};
 
+	class ChunkReader: public IFDTask {
+	public:
+		ChunkReader(ServerData, int, uint);
+		Result<bool, Error> runTask(FDTaskDispatcher&);
+		int getDescriptor() const;
+		IOMode getIOMode() const;
+	private:
+		Option<Error> sendError(FDTaskDispatcher&, Error);
+		Option<Error> parseSize(FDTaskDispatcher& dispatcher);
+		
+		ServerData sData;
+		int clientSocketFd;
+		std::vector<std::string> lines;
+		Option<uint> specifiedSize;
+		uint sizeLimit;
+		uint size;
+	};
+
 	// `RequestHandler` is a task that reads the HTTP request contents from its file descriptor, parses it,
 	// handles the requests and produces a response handler.
 	class RequestHandler: public IFDTask {
@@ -33,17 +52,21 @@ namespace Webserv {
 		IOMode getIOMode() const;
 	private:
 		RequestHandler(const ServerData&, int);
-		
+		Option<Error> sendError(FDTaskDispatcher&, Error);
+
 		ServerData sData;
 		int clientSocketFd;
-		Option<HTTPRequest> request;
-		bool chunked;
+		// Option<HTTPRequest> request;
+		HTTPRequest::Builder reqBuilder;
+		Option<LocationTreeNode::LocationSearchResult> location;
+		Option<uint> dataSizeLimit;
 	};
 
 	// `ResponseHandler` is a task that is responsible for building a HTTP response and sending it back to the client.
 	class ResponseHandler: public IFDTask, public IFDConsumer {
 	public:
 		static Result<ResponseHandler*, Error> tryMake(ServerData&, ConnectionInfo&);
+		static Result<ResponseHandler*, Error> tryMakeErrorPage(ServerData&, ConnectionInfo&, Error);
 		Result<bool, Error> runTask(FDTaskDispatcher&);
 		int getDescriptor() const;
 		IOMode getIOMode() const;

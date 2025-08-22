@@ -232,6 +232,14 @@ public:
 		return result;
 	}
 
+	T& ref() {
+		return *ptr;
+	}
+
+	const T& ref() const {
+		return *ptr;
+	}
+
 	// Returns true if unique pointer owns the inner object.
 	bool isMoved() const {
 		return ptr == NULL;
@@ -311,6 +319,7 @@ enum FSType {
 	FS_FILE,
 	FS_DIRECTORY,
 };
+
 // Check if a specified path string leads to a directory, file or nothing.
 FSType checkFSType(const std::string&);
 

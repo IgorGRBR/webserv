@@ -120,25 +120,12 @@ namespace Webserv {
 		return Error(Error::RESOURCE_NOT_FOUND, "Could not find a resource on the specified path.");
 	};
 
-	TaskResult handleRequest(HTTPRequest& request, ServerData& sData, int clientSocketFd) {
-		TaskResult result = analyzeRequest(request, sData, clientSocketFd);
-
-		if (result.isError()) {
-			if (result.getError().tag == Error::SHUTDOWN_SIGNAL) {
-				return result.getError();
-			}
-
-			std::string respContent = makeErrorPage(result.getError());
-			ConnectionInfo conn;
-			conn.connectionFd = clientSocketFd;
-			Result<ResponseHandler*, Error> response = ResponseHandler::tryMake(sData, conn);
-			if (response.isError()) {
-				return response.getError();
-			}
-			response.getValue()->setResponseData(respContent);
-			response.getValue()->setResponseCode(result.getError().getHTTPCode());
-			return response.getValue();
-		}
-		return result;
+	TaskResult handleRequest(HTTPRequest& request, LocationTreeNode::LocationSearchResult& query, ServerData& sData, int clientSocketFd) {
+		const Location* location = query.location;
+		if (!checkIfMethodIsInByte(request.getMethod(), location->allowedMethods)) {
+				return Error(Error::GENERIC_ERROR, "HTTP method is not allowed");
+		};
+		return handleLocation(query.locationPath, *location, request, sData, clientSocketFd);
 	};
 }
+

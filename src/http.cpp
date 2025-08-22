@@ -1,6 +1,8 @@
 #include "http.hpp"
+#include "error.hpp"
 #include "url.hpp"
 #include "ystl.hpp"
+#include <cstddef>
 #include <cstdio>
 #include <ostream>
 #include <sstream>
@@ -135,11 +137,36 @@ HTTPMethod Webserv::HTTPRequest::getMethod() const {
 	return method;
 };
 
+Option<uint> Webserv::HTTPRequest::getContentLength() const {
+	Option<std::string> contentLengthStr = getHeader("Content-Length");
+	if (contentLengthStr.isNone()) {
+		return NONE;
+	}
+
+	uint contentLength;
+	std::stringstream contentLengthStream(contentLengthStr.get());
+	contentLengthStream >> contentLength;
+
+	return contentLength;
+}
+
 std::ostream& Webserv::operator<<(std::ostream& os, const HTTPRequest& req) {
 	os << "HTTPRequest(" << httpMethodName(req.getMethod()) << ", "
 		<< req.getPath().toString() << ", " << req.getData() << ")";
 	return os;
 };
+
+void Webserv::HTTPRequest::setData(const std::string& str) {
+	data = str;
+}
+
+
+Option<std::string> Webserv::HTTPRequest::getHeader(const std::string& key) const {
+	if (headers.find(key) != headers.end()) {
+		return headers.at(key);
+	}
+	return NONE;
+}
 
 HTTPResponse::HTTPResponse(Webserv::Url uri, ReturnCode retCode): resourcePath(uri), retCode(retCode), headers() {
 	headers["Content-Type"] = "text/html";
@@ -246,4 +273,88 @@ Webserv::HTTPContentType Webserv::getContentType(const Url& url) {
 		default:
 			return (BYTE_STREAM);
 	}
+}
+
+typedef Webserv::HTTPRequest::Builder Builder;
+
+Builder::Builder() {};
+
+Result<Builder::State, Webserv::Error> Builder::appendData(const std::string& str) {
+	bool headerComplete = false;
+	switch (internalState) {
+        case INITIAL:
+			if (lines.size() > 0) {
+				// This is so inefficient...
+				std::string lastCombined = lines.back() + str;
+				if (lastCombined.find("\r\n\r\n") != std::string::npos) {
+					internalState = HEADER_COMPLETE;
+					headerComplete = true;
+				}
+			}
+			
+			lines.push_back(str);
+
+			if (lines.back().find("\r\n\r\n") != std::string::npos) {
+				internalState = HEADER_COMPLETE;
+				headerComplete = true;
+			}
+			break;
+        case HEADER_COMPLETE:
+			lines.push_back(str);
+			dataSize += str.size();
+			break;
+        }
+
+	if (headerComplete) {
+		std::stringstream collectedDataStream;
+		for (uint i = 0; i < lines.size(); i++) {
+			collectedDataStream << lines[i];
+		}
+
+		std::string collectedDataString = collectedDataStream.str();
+		size_t doubleNlPos = collectedDataString.find("\r\n\r\n");
+		std::string headerStr = collectedDataString.substr(0, doubleNlPos + 4);
+
+		std::string rest = collectedDataString.substr(doubleNlPos + 4, collectedDataString.size() - doubleNlPos);
+		lines.clear();
+		lines.push_back(rest);
+		dataSize = rest.size();
+
+		HTTPRequest* reqPtr = new HTTPRequest();
+		Result<HTTPRequest, HTTPRequestError> maybeRequest = HTTPRequest::fromText(headerStr);
+		if (maybeRequest.isError()) {
+			return Error(Error::HTTP_ERROR, httpRequestErrorMessage(maybeRequest.getError()));
+		}
+		*reqPtr = maybeRequest.getValue();
+		request = reqPtr;
+	}
+
+	return internalState;
+}
+
+Option<Webserv::Url> Builder::getHeaderPath() const {
+	if (request.isMoved())
+		return NONE;
+	else
+		return request->getPath();
+}
+
+Option<uint> Builder::getContentLength() const {
+	if (request.isMoved())
+		return NONE;
+	else
+	 	return request->getContentLength();
+}
+
+uint Builder::getDataSize() const {
+	return dataSize;
+}
+
+Result<UniquePtr<Webserv::HTTPRequest>, Webserv::Error> Builder::build() {
+	std::stringstream collectedDataStream;
+	for (uint i = 0; i < lines.size(); i++) {
+		collectedDataStream << lines[i];
+	}
+	request->setData(collectedDataStream.str());
+	return request;
 }

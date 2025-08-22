@@ -42,6 +42,9 @@ namespace Webserv {
 
 				// Flags for the HTTP methods this location is allowed to process. Not implemented yet.
 				unsigned char allowedMethods;
+
+				// Max HTTP request message body of the location.
+				Option<uint> maxRequestSize;
 			};
 
 			// A map of locations and their paths.
