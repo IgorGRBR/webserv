@@ -62,7 +62,7 @@ debug: $(DBG_OBJ)
 
 $(DBG_OBJ_ROOT)/%.o : $(SRC_ROOT)/%.cpp | $(DBG_OBJ_DIR)
 	@echo $(NAME): debug building $@
-	@$(CC) $(CFLAGS) $(INC_DIR) $(DEFINES) -c $< -o $@ -g
+	@$(CC) $(CFLAGS) $(INC_DIR) $(DEFINES) -D DEBUG -c $< -o $@ -g
 
 clean:
 	@echo $(NAME): cleaning objects

@@ -32,10 +32,31 @@ namespace Webserv {
 	// Returns a short description of the HTTP request error.
 	const char* httpRequestErrorMessage(HTTPRequestError);
 
+	struct Error;
+
 	// `HTTPRequest` is a container that contains parsed HTTP request data.
 	// TODO: Parse the request header into `std::map<std::string, std::string>`.
 	class HTTPRequest {
 	public:
+		class Builder {
+		public:
+			enum State {
+				INITIAL,
+				HEADER_COMPLETE,
+			};
+			Builder();
+			Result<State, Error> appendData(const std::string&);
+			Result<UniquePtr<HTTPRequest>, Error> build();
+			uint getDataSize() const;
+			Option<Url> getHeaderPath() const;
+			Option<uint> getContentLength() const;
+		private:
+			uint dataSize;
+			std::vector<std::string> lines;
+			State internalState;
+			UniquePtr<HTTPRequest> request;
+		};
+
 		// Attempts to construct a `HTTPRequest` instance from provided text.
 		static Result<HTTPRequest, HTTPRequestError> fromText(std::string&);
 
@@ -47,9 +68,13 @@ namespace Webserv {
 
 		// Retrieves the HTTP method of the request.
 		HTTPMethod getMethod() const;
+    
+		Option<uint> getContentLength() const;
 
+		Option<std::string> getHeader(const std::string&) const;
 	private:
 		// It's here so you can't construct an empty HTTPRequest.
+		void setData(const std::string&);
 		HTTPRequest();
 		Url path;
 		std::string data;

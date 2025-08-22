@@ -4,6 +4,7 @@
 #include "error.hpp"
 #include "dispatcher.hpp"
 #include "tasks.hpp"
+#include "webserv.hpp"
 #include "ystl.hpp"
 #include "url.hpp"
 
@@ -28,6 +29,17 @@ void urlTests() {
 	}
 }
 
+void hexDecTests() {
+	std::cout << Webserv::hexStrToUInt("const std::string &").isNone() << std::endl;
+	std::cout << Webserv::hexStrToUInt("0").get() << std::endl;
+	std::cout << Webserv::hexStrToUInt("9").get() << std::endl;
+	std::cout << Webserv::hexStrToUInt("a").get() << std::endl;
+	std::cout << Webserv::hexStrToUInt("b").get() << std::endl;
+	std::cout << Webserv::hexStrToUInt("f").get() << std::endl;
+	std::cout << Webserv::hexStrToUInt("10").get() << std::endl;
+	std::cout << Webserv::hexStrToUInt("11").get() << std::endl;
+}
+
 int main(int argc, char* argv[]) {
 	// Get the path of a config file
 	std::string configPath;
@@ -39,6 +51,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	// urlTests();
+	// hexDecTests();
 	// Load the config
 	std::cout << "A webserver has started" << std::endl;
 	Config config = Webserv::readConfigFromFile(configPath).getValue(); // TODO: handle this better
@@ -48,8 +61,7 @@ int main(int argc, char* argv[]) {
 	// Configure the initial client connection listeners
 	FDTaskDispatcher dispatcher;
 	for (uint i = 0; i < config.servers.size(); i++) {
-		Result<ClientListener*, Error> maybeListener = ClientListener::tryMake(config.servers[i],
-			config.servers[i].port.getOr(config.defaultPort));
+		Result<ClientListener*, Error> maybeListener = ClientListener::tryMake(config, config.servers[i]);
 		if (maybeListener.isError()) {
 			std::cout << "Critical error when trying to construct a client listener: "
 				<< maybeListener.getError().getTagMessage() << std::endl;
