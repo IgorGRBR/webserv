@@ -9,6 +9,7 @@ server (
 		dirListing
 		allowMethod POST
 		allowMethod GET
+		maxRequestSize 5
 	)
 
 	location /awesome/thingy (

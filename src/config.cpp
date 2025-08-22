@@ -150,6 +150,15 @@ LocationResult parseLocationDirective(ParserContext &ctx) {
 						return Webserv::UNEXPECTED_SYMBOL;
 					}
 				}
+				else if (sym == "maxRequestSize") {
+					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
+					if (ctx.it->getTag() != Webserv::Token::SYMBOL) return Webserv::UNEXPECTED_TOKEN;
+					std::stringstream s(std::string(ctx.it->getSym()));
+
+					uint maxSize;
+					s >> maxSize;
+					location.maxRequestSize = maxSize;
+				}
 				else return Webserv::UNEXPECTED_SYMBOL;
 				break;
 			case Webserv::Token::OPAREN:
