@@ -1,6 +1,7 @@
 server (
 	serverName "A cool server"
-	listen 8080
+	listen 8064
+	maxRequestSize 1024
 	location /awesome (
 		root ./exampleSite/
 		return 200
@@ -8,5 +9,12 @@ server (
 		dirListing
 		allowMethod POST
 		allowMethod GET
+		maxRequestSize 5
+	)
+
+	location /awesome/thingy (
+		root ./exampleSite/test
+		return 200
+		index cool.html
 	)
 )

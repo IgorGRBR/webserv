@@ -6,7 +6,6 @@
 #include "ystl.hpp"
 #include <cstring>
 #include <unistd.h>
-#include <vector>
 #include "tasks.hpp"
 
 typedef Webserv::Error Error;
@@ -15,14 +14,16 @@ typedef Webserv::ClientListener ClientListener;
 
 ClientListener::ClientListener(const ServerData& data, int fd): sData(data), socketFd(fd) {}
 
-Result<ClientListener*, Error> ClientListener::tryMake(Config::Server &config, ushort port) {
+Result<ClientListener*, Error> ClientListener::tryMake(Config& config, Config::Server &serverConfig) {
 	ServerData sData;
 
-	if (config.defaultRoot.isNone()) {
+	ushort port = serverConfig.port.getOr(config.defaultPort);
+
+	if (serverConfig.defaultRoot.isNone()) {
 		sData.rootPath = Url();
 	}
 	else {
-		Option<Url> maybePath = Url::fromString(config.defaultRoot.get());
+		Option<Url> maybePath = Url::fromString(serverConfig.defaultRoot.get());
 		if (maybePath.isNone()) {
 			sData.rootPath = Url();
 		}
@@ -31,13 +32,15 @@ Result<ClientListener*, Error> ClientListener::tryMake(Config::Server &config, u
 		}
 	}
 
-	for (std::map<std::string, Location>::const_iterator it = config.locations.begin(); it != config.locations.end(); it++) {
+	for (std::map<std::string, Location>::const_iterator it = serverConfig.locations.begin(); it != serverConfig.locations.end(); it++) {
 		Option<Url> url = Url::fromString(it->first);
 		if (url.isNone()) {
 			return Error(Error::PATH_PARSING_ERROR);
 		}
-		sData.locations.push_back(std::pair<Url, Location>(url.get(), it->second));
+		sData.locations.insertLocation(url.get(), &it->second);
 	}
+
+	sData.maxRequestSize = serverConfig.maxRequestSize.getOr(config.maxRequestSize);
 
 	// So, lets start with making a socket object
 	sData.socketFd = socket(AF_INET, SOCK_STREAM, 0);

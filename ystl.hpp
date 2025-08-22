@@ -16,7 +16,7 @@ inline static T undefinedBehaviorMachine() {
 	// a concept of a variant type in C++. You can't use unions, because for some reason they require
 	// you to use only POD types. You can't use default-init fields, because they require your types to
 	// have a default constructor, which often doesn't make sense for a variant-like type.
-	
+
 	// What this function does is it returns a deliberately-uninitialized memory, that can be used in
 	// places where you can verify it would never be used (such as the following Option and Result types).
 
@@ -277,7 +277,7 @@ private:
 
 // `UniquePtr<T>` is a smart pointer that binds the lifetime of its unique resource to its scope. Unique pointers
 // can transfer their ownership to other unique pointers by copying or assignment. Access to the inner pointer should
-// only happen through this class (meaning that taking out the inner pointer and stroring it elsewhere is a terrible idea, 
+// only happen through this class (meaning that taking out the inner pointer and stroring it elsewhere is a terrible idea,
 // one should explicitly move out the value first).
 template <typename T>
 class UniquePtr {
@@ -298,7 +298,7 @@ public:
 
 	// Assignment operator transfers the ownership from the assignee to the assigned object.
 	UniquePtr& operator=(const UniquePtr& other) {
-		if (ptr) {
+		if ( ptr) {
 			delete ptr;
 		}
 		UniquePtr<T>& otherMut = const_cast<UniquePtr<T>& >(other); // `const_cast`, ewwww....
@@ -332,6 +332,14 @@ public:
 		T* result = ptr;
 		ptr = NULL;
 		return result;
+	}
+
+	T& ref() {
+		return *ptr;
+	}
+
+	const T& ref() const {
+		return *ptr;
 	}
 
 	// Returns true if unique pointer owns the inner object.
@@ -413,6 +421,7 @@ enum FSType {
 	FS_FILE,
 	FS_DIRECTORY,
 };
+
 // Check if a specified path string leads to a directory, file or nothing.
 FSType checkFSType(const std::string&);
 

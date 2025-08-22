@@ -25,11 +25,20 @@ Result<ResponseHandler*, Error> ResponseHandler::tryMake(ServerData& sd, Connect
 	return new ResponseHandler(sd, ci);
 }
 
+Result<ResponseHandler*, Error> ResponseHandler::tryMakeErrorPage(ServerData & sd, ConnectionInfo & ci, Error error) {
+	ResponseHandler* response = new ResponseHandler(sd, ci);
+
+	std::string respContent = makeErrorPage(error);
+	response->setResponseData(respContent);
+	response->setResponseCode(error.getHTTPCode());
+	return response;
+}
+
 Result<bool, Error> ResponseHandler::runTask(FDTaskDispatcher&) {
 	if (!ready) return true;
 	HTTPResponse response(Url(), responseCode);
 	response.setData(responseData);
-	// response.setContentType(contentTypeString(contentType));
+	response.setContentType(contentTypeString(contentType));
 	std::string responseStr = response.build();
 
 	// Now respond!
@@ -65,6 +74,7 @@ void ResponseHandler::setResponseCode(HTTPReturnCode code) {
 
 void ResponseHandler::setResponseContentType(Webserv::HTTPContentType cType) {
 	contentType = cType;
+	std::cout << "(DEBUG) cType: " << contentTypeString(cType) << std::endl;
 }
 
 ResponseHandler::~ResponseHandler() {
