@@ -394,6 +394,8 @@ Webserv::HTTPContentType Webserv::getContentType(const Url& url) {
 typedef Webserv::HTTPRequest::Builder Builder;
 
 Builder::Builder():
+	// This absolute BS language will yell at you for leaving complex data types in templates uninitialized,
+	// yet will happily let you slip through an uninitialized enum. Fantastic.
 	lines(), internalState(INITIAL) {};
 
 Result<Builder::State, Webserv::Error> Builder::appendData(const std::string& str) {

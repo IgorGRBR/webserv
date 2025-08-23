@@ -96,9 +96,13 @@ namespace Webserv {
 		// Attempts to remove a file descriptor from the set of active file descriptors.
 		bool tryUnregisterDescriptor(int);
 
+		void registerDescriptor(int);
+		void tryCloseDescriptor(int);
+
 		std::map<int, UniquePtr<IFDTask> > activeHandlers;
 		std::vector<UniquePtr<IFDTask> > insertionQueue;
 		std::set<int> activeDescriptors;
+		std::map<int, uint> aliveDescriptors;
 #ifdef OSX
 		int kqueueFd;
 #endif

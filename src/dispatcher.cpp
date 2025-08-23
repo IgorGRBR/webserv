@@ -45,6 +45,7 @@ FDTaskDispatcher::~FDTaskDispatcher() {
 
 void FDTaskDispatcher::registerTask(IFDTask* task) {
 	insertionQueue.push_back(task);
+	registerDescriptor(task->getDescriptor());
 }
 
 bool FDTaskDispatcher::tryUnregisterDescriptor(int fd) {
@@ -84,6 +85,31 @@ bool FDTaskDispatcher::tryRegisterDescriptor(int fd, IOMode mode) {
 #endif
 	activeDescriptors.insert(fd);
 	return true;
+}
+
+void FDTaskDispatcher::registerDescriptor(int fd) {
+	if (aliveDescriptors.find(fd) == aliveDescriptors.end()) {
+		aliveDescriptors[fd] = 1;
+	}
+	else {
+		aliveDescriptors[fd] += 1;
+	}
+	std::cout << "Registered descriptor: " << fd << " - " << aliveDescriptors[fd] << std::endl;
+}
+
+void FDTaskDispatcher::tryCloseDescriptor(int fd) {
+	if (aliveDescriptors.find(fd) == aliveDescriptors.end()) {
+		std::cerr << "Attempt to remove a non-inserted descriptor " << fd << std::endl;
+		std::exit(1);
+	}
+	else {
+		aliveDescriptors[fd] -= 1;
+		std::cout << "TryClosed descriptor: " << fd << " - " << aliveDescriptors[fd] << std::endl;
+		if (aliveDescriptors[fd] == 0) {
+			aliveDescriptors.erase(fd);
+			close(fd);
+		}
+	}
 }
 
 Option<Webserv::Error> FDTaskDispatcher::update() {
@@ -139,6 +165,7 @@ Option<Webserv::Error> FDTaskDispatcher::update() {
 			return Error(Error::GENERIC_ERROR, "Attempt to close non-existent descriptor");
 		}
 		activeHandlers.erase((*it)->getDescriptor());
+		tryCloseDescriptor((*it)->getDescriptor());
 	}
 
 	return NONE;
