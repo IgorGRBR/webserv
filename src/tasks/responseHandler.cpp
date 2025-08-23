@@ -31,6 +31,7 @@ Result<ResponseHandler*, Error> ResponseHandler::tryMakeErrorPage(ServerData & s
 	std::string respContent = makeErrorPage(error);
 	response->setResponseData(respContent);
 	response->setResponseCode(error.getHTTPCode());
+	response->setResponseContentType(HTML);
 	return response;
 }
 
