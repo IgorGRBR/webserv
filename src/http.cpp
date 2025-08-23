@@ -393,7 +393,8 @@ Webserv::HTTPContentType Webserv::getContentType(const Url& url) {
 
 typedef Webserv::HTTPRequest::Builder Builder;
 
-Builder::Builder() {};
+Builder::Builder():
+	lines(), internalState(INITIAL) {};
 
 Result<Builder::State, Webserv::Error> Builder::appendData(const std::string& str) {
 	bool headerComplete = false;
@@ -460,6 +461,13 @@ Option<uint> Builder::getContentLength() const {
 		return NONE;
 	else
 	 	return request->getContentLength();
+}
+
+Option<HTTPMethod> Builder::getHTTPMethod() const {
+	if (request.isMoved())
+		return NONE;
+	else
+		return request->getMethod();
 }
 
 uint Builder::getDataSize() const {

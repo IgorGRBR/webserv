@@ -14,10 +14,16 @@ typedef Webserv::Config::Server::Location Location;
 
 typedef Webserv::RequestHandler RequestHandler;
 
-RequestHandler::RequestHandler(const ServerData& sd, int cfd): sData(sd), clientSocketFd(cfd) {};
+RequestHandler::RequestHandler(const ServerData& sd, int cfd):
+	sData(sd),
+	clientSocketFd(cfd),
+	reqBuilder(),
+	location(),
+	dataSizeLimit() {};
 
 Result<RequestHandler*, Error> RequestHandler::tryMake(int cfd, ServerData &data) {
 	RequestHandler* rHandler = new RequestHandler(data, cfd);
+	std::cout << "making new request handler for id: " << cfd << std::endl;
 	return rHandler;
 }
 
@@ -35,7 +41,7 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 	std::string bufStr = std::string(buffer);
 	(void)readResult;
 #ifdef DEBUG
-	std::cout << "Read result: " << readResult << "\nContent:\n" << bufStr << std::endl;
+	// std::cout << "Read result: " << readResult << "\nContent:\n" << bufStr << std::endl;
 #endif
 	Result<HTTPRequest::Builder::State, Error> state = reqBuilder.appendData(bufStr);
 
@@ -61,9 +67,18 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 				if (critical.isSome()) return critical.get();
 				return false;
 			}
-			Option<uint> contLength = reqBuilder.getContentLength();
-			if (contLength.isSome()) {
-				if (contLength.get() > dataSizeLimit.get()) {
+			Option<HTTPMethod> method = reqBuilder.getHTTPMethod();
+			if (method.isSome() && method.get() != GET) {
+				Option<uint> maybeContLength = reqBuilder.getContentLength();
+				if (maybeContLength.isNone()) {
+					// TODO: replace with proper error code
+					Option<Error> critical = sendError(dispatcher, Error(Error::HTTP_ERROR,
+						"HTTP message is missing Content-Length header"));
+					if (critical.isSome()) return critical.get();
+					return false;
+				}
+				uint contLength = maybeContLength.get();
+				if (contLength > dataSizeLimit.get()) {
 					// TODO: set the correct error tag
 					Option<Error> critical = sendError(dispatcher, Error(Error::GENERIC_ERROR,
 						"HTTP message content length is too large!"));
@@ -71,6 +86,9 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 					return false;
 				}
 				dataSizeLimit = contLength;
+			}
+			else {
+				dataSizeLimit = 0;
 			}
 		}
 		if (dataSizeLimit.isSome()) {
@@ -140,5 +158,5 @@ Option<Error> RequestHandler::sendError(FDTaskDispatcher& dispatcher, Error erro
 }
 
 RequestHandler::~RequestHandler() {
-	std::cout << "Destroying request handler" << std::endl;
+	std::cout << "unmaking request handler for id: " << clientSocketFd << std::endl;
 }

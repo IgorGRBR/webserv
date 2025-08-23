@@ -50,6 +50,7 @@ namespace Webserv {
 		Result<bool, Error> runTask(FDTaskDispatcher&);
 		int getDescriptor() const;
 		IOMode getIOMode() const;
+		~RequestHandler();
 	private:
 		RequestHandler(const ServerData&, int);
 		Option<Error> sendError(FDTaskDispatcher&, Error);

@@ -50,6 +50,7 @@ namespace Webserv {
 			uint getDataSize() const;
 			Option<Url> getHeaderPath() const;
 			Option<uint> getContentLength() const;
+			Option<HTTPMethod> getHTTPMethod() const;
 		private:
 			uint dataSize;
 			std::vector<std::string> lines;
