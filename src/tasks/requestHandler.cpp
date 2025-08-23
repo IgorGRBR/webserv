@@ -23,7 +23,9 @@ RequestHandler::RequestHandler(const ServerData& sd, int cfd):
 
 Result<RequestHandler*, Error> RequestHandler::tryMake(int cfd, ServerData &data) {
 	RequestHandler* rHandler = new RequestHandler(data, cfd);
+#ifdef DEBUG
 	std::cout << "making new request handler for id: " << cfd << std::endl;
+#endif
 	return rHandler;
 }
 
@@ -158,5 +160,7 @@ Option<Error> RequestHandler::sendError(FDTaskDispatcher& dispatcher, Error erro
 }
 
 RequestHandler::~RequestHandler() {
+#ifdef DEBUG
 	std::cout << "unmaking request handler for id: " << clientSocketFd << std::endl;
+#endif
 }

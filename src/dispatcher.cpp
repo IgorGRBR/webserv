@@ -73,7 +73,10 @@ bool FDTaskDispatcher::tryRegisterDescriptor(int fd, IOMode mode) {
 	if (mode == WRITE_MODE) ev.events = EPOLLOUT;
 	ev.data.fd = fd;
 	int ctlResult = epoll_ctl(epollFd, EPOLL_CTL_ADD, fd, &ev);
+	(void)ctlResult;
+#ifdef DEBUG
 	std::cout << "epoll_ctl: " << ctlResult << std::endl;
+#endif
 #endif
 #ifdef OSX
 	struct kevent ev;
@@ -94,17 +97,23 @@ void FDTaskDispatcher::registerDescriptor(int fd) {
 	else {
 		aliveDescriptors[fd] += 1;
 	}
+#ifdef DEBUG
 	std::cout << "Registered descriptor: " << fd << " - " << aliveDescriptors[fd] << std::endl;
+#endif
 }
 
 void FDTaskDispatcher::tryCloseDescriptor(int fd) {
 	if (aliveDescriptors.find(fd) == aliveDescriptors.end()) {
+#ifdef DEBUG
 		std::cerr << "Attempt to remove a non-inserted descriptor " << fd << std::endl;
+#endif
 		std::exit(1);
 	}
 	else {
 		aliveDescriptors[fd] -= 1;
+#ifdef DEBUG
 		std::cout << "TryClosed descriptor: " << fd << " - " << aliveDescriptors[fd] << std::endl;
+#endif
 		if (aliveDescriptors[fd] == 0) {
 			aliveDescriptors.erase(fd);
 			close(fd);
