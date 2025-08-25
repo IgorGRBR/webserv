@@ -9,6 +9,12 @@
 #include <unistd.h>
 #include "tasks.hpp"
 
+#define SEND_ERROR(dispatcher, errorObj) { \
+		Option<Error> critical = sendError(dispatcher, errorObj); \
+		if (critical.isSome()) return critical.get(); \
+		return false; \
+	} \
+
 typedef Webserv::Error Error;
 typedef Webserv::Config::Server::Location Location;
 
@@ -58,6 +64,18 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 		return true; // Do nothing I guess?
 		break;
 	case HTTPRequest::Builder::HEADER_COMPLETE:
+		if (sData.serverNames.size() > 0) {
+			// Check if the request host header matches the name of the server.
+			Option<std::string> maybeHost = reqBuilder.getHost();
+			if (maybeHost.isNone()) {
+				// TODO: replace the proper error tag
+				SEND_ERROR(dispatcher, Error(Error::GENERIC_ERROR, "Missing host"));
+			}
+			std::string host = maybeHost.get();
+			if (sData.serverNames.find(host) == sData.serverNames.end()) {
+				SEND_ERROR(dispatcher, Error(Error::GENERIC_ERROR, "Invalid host"));
+			}
+		}
 		if (dataSizeLimit.isNone()) {
 			location = sData.locations.tryFindLocation(reqBuilder.getHeaderPath().get());
 			if (location.isSome()) {
@@ -65,27 +83,21 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 			}
 			else {
 				// TODO: make sure the error code is correct
-				Option<Error> critical = sendError(dispatcher, Error(Error::RESOURCE_NOT_FOUND));
-				if (critical.isSome()) return critical.get();
-				return false;
+				SEND_ERROR(dispatcher, Error(Error::RESOURCE_NOT_FOUND));
 			}
 			Option<HTTPMethod> method = reqBuilder.getHTTPMethod();
 			if (method.isSome() && method.get() != GET) {
 				Option<uint> maybeContLength = reqBuilder.getContentLength();
 				if (maybeContLength.isNone()) {
 					// TODO: replace with proper error code
-					Option<Error> critical = sendError(dispatcher, Error(Error::HTTP_ERROR,
+					SEND_ERROR(dispatcher, Error(Error::HTTP_ERROR, 
 						"HTTP message is missing Content-Length header"));
-					if (critical.isSome()) return critical.get();
-					return false;
 				}
 				uint contLength = maybeContLength.get();
 				if (contLength > dataSizeLimit.get()) {
 					// TODO: set the correct error tag
-					Option<Error> critical = sendError(dispatcher, Error(Error::GENERIC_ERROR,
+					SEND_ERROR(dispatcher, Error(Error::GENERIC_ERROR,
 						"HTTP message content length is too large!"));
-					if (critical.isSome()) return critical.get();
-					return false;
 				}
 				dataSizeLimit = contLength;
 			}
@@ -103,9 +115,7 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 			else if (size == limit) {
 				Result<UniquePtr<HTTPRequest>, Error> maybeRequest = reqBuilder.build();
 				if (maybeRequest.isError()) {
-					Option<Error> critical = sendError(dispatcher, maybeRequest.getError());
-					if (critical.isSome()) return critical.get();
-					return false;
+					SEND_ERROR(dispatcher, maybeRequest.getError());
 				}
 
 				UniquePtr<HTTPRequest> request = maybeRequest.getValue();
@@ -126,9 +136,7 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 						clientSocketFd
 					);
 					if (nextTask.isError()) {
-						Option<Error> critical = sendError(dispatcher, nextTask.getError());
-						if (critical.isSome()) return critical.get();
-						return false;
+						SEND_ERROR(dispatcher, nextTask.getError());
 					}
 					dispatcher.registerTask(nextTask.getValue());
 				}
@@ -136,10 +144,7 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 			}
 			else {
 				// TODO: set the correct error tag
-				Option<Error> critical = sendError(dispatcher, Error(Error::GENERIC_ERROR,
-					"HTTP message content length is too large!"));
-				if (critical.isSome()) return critical.get();
-				return false;
+				SEND_ERROR(dispatcher, Error(Error::GENERIC_ERROR, "HTTP message content length is too large!"));
 			}
 		}
 		break;

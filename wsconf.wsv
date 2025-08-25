@@ -1,5 +1,4 @@
 server (
-	serverName "A cool server"
 	listen 8064
 	maxRequestSize 1024
 	location /awesome (
@@ -16,5 +15,17 @@ server (
 		root ./exampleSite/test
 		return 200
 		index cool.html
+	)
+)
+
+server (
+	listen 8095
+	serverName cool-site.com
+	serverName (www.cool-site.com awesome.com)
+	location / (
+		root ./exampleSite/test
+		return 200
+		index cool.html
+		maxRequestSize 200
 	)
 )

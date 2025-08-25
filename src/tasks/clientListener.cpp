@@ -42,6 +42,8 @@ Result<ClientListener*, Error> ClientListener::tryMake(Config& config, Config::S
 
 	sData.maxRequestSize = serverConfig.maxRequestSize.getOr(config.maxRequestSize);
 
+	sData.serverNames = serverConfig.serverNames;
+
 	// So, lets start with making a socket object
 	sData.socketFd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sData.socketFd == -1) {
