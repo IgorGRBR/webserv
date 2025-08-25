@@ -41,6 +41,7 @@ namespace Webserv {
 		Url rootPath;
 		uint maxRequestSize;
 		LocationTreeNode locations;
+		std::set<std::string> serverNames;
 	};
 
 	// This struct will contain all the necessary details about current connection to the client.

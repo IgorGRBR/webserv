@@ -64,7 +64,7 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 		return true; // Do nothing I guess?
 		break;
 	case HTTPRequest::Builder::HEADER_COMPLETE:
-		if (sData.config.serverNames.size() > 0) {
+		if (sData.serverNames.size() > 0) {
 			// Check if the request host header matches the name of the server.
 			Option<std::string> maybeHost = reqBuilder.getHost();
 			if (maybeHost.isNone()) {
@@ -72,7 +72,7 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 				SEND_ERROR(dispatcher, Error(Error::GENERIC_ERROR, "Missing host"));
 			}
 			std::string host = maybeHost.get();
-			if (sData.config.serverNames.find(host) == sData.config.serverNames.end()) {
+			if (sData.serverNames.find(host) == sData.serverNames.end()) {
 				SEND_ERROR(dispatcher, Error(Error::GENERIC_ERROR, "Invalid host"));
 			}
 		}
