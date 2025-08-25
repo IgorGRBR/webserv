@@ -472,6 +472,13 @@ Option<HTTPMethod> Builder::getHTTPMethod() const {
 		return request->getMethod();
 }
 
+Option<std::string> Builder::getHost() const {
+	if (request.isMoved())
+		return NONE;
+	else
+	 	return request->getHeader("Host");
+}
+
 uint Builder::getDataSize() const {
 	return dataSize;
 }

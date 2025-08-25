@@ -1,6 +1,7 @@
 #ifndef CONFIG_HPP
 #define CONFIG_HPP
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 #include "ystl.hpp"
@@ -53,8 +54,8 @@ namespace Webserv {
 			// Optional port that will be used for this server.
 			Option<ushort> port;
 
-			// Optional name that will be necessary to communicate with the server. Not implemented yet.
-			Option<std::string> serverName;
+			// Optional name that will be necessary to communicate with the server.
+			std::set<std::string> serverNames;
 
 			// Default root path. Only works if there is no "/" location defined. Also not yet implemented.
 			Option<std::string> defaultRoot;

@@ -66,13 +66,32 @@ void tokenizeLine(std::vector<Token>& tokens, std::string& line, char& stringSta
 				c++;
 				continue;
 			}
-			if (*c == '(' || *c == ')') tokens.push_back(Token(*c));
-			else if (!std::isspace(*c)) symBuf.push_back(*c);
-	
-			if ((*c == '(' || *c == ')' || std::isspace(*c)) && symBuf.length() > 0) {
-				tokens.push_back(Token(symBuf));
-				symBuf = std::string();
+
+			if (*c == '(' || *c == ')') {
+				if (symBuf.length() > 0) {
+					tokens.push_back(Token(symBuf));
+					symBuf = std::string();
+				}
+				tokens.push_back(Token(*c));
 			}
+			else if (std::isspace(*c)) {
+				if (symBuf.length() > 0) {
+					tokens.push_back(Token(symBuf));
+					symBuf = std::string();
+				}
+			}
+			else {
+				symBuf.push_back(*c);
+			}
+
+			// if (*c == '(' || *c == ')') tokens.push_back(Token(*c));
+			// else if (!std::isspace(*c)) symBuf.push_back(*c);
+	
+			// if ((*c == '(' || *c == ')' || std::isspace(*c))) {
+			// 	if (*c == '(') tokens.push_back(Token(*c));
+			// 	tokens.push_back(Token(symBuf));
+			// 	symBuf = std::string();
+			// }
 		}
 		c++;
 	}
@@ -193,8 +212,28 @@ ServerResult parseServerDirective(ParserContext& ctx) {
 				}
 				else if (sym == "serverName") {
 					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
-					if (ctx.it->getTag() != Webserv::Token::SYMBOL) return Webserv::UNEXPECTED_TOKEN;
-					server.serverName = Option<std::string>(ctx.it->getSym());
+					if (ctx.it->getTag() == Webserv::Token::SYMBOL) {
+						server.serverNames.insert(ctx.it->getSym());
+					}
+					else if (ctx.it->getTag() == Webserv::Token::OPAREN) {
+						while (ctx.it->getTag() != Webserv::Token::CPAREN) {
+							if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
+							switch (ctx.it->getTag()) {
+							case Webserv::Token::SYMBOL:{
+								server.serverNames.insert(ctx.it->getSym());
+								break;
+							}
+							case Webserv::Token::CPAREN: {
+								break;
+							}
+							default:
+								return Webserv::UNEXPECTED_TOKEN;
+							}
+						}
+					}
+					else {
+						return Webserv::UNEXPECTED_TOKEN;
+					}
 				}
 				else if (sym == "location") {
 					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
