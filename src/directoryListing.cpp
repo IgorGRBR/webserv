@@ -3,7 +3,6 @@
 #include <sys/stat.h>
 #include <ctime>
 #include <sstream>
-#include <iomanip> // Available in C++98 for setw
 #include <string>
 
 std::string Webserv::makeDirectoryListing(const std::string &diskPath, const std::string &urlPath, bool topLevel) {
