@@ -66,13 +66,32 @@ void tokenizeLine(std::vector<Token>& tokens, std::string& line, char& stringSta
 				c++;
 				continue;
 			}
-			if (*c == '(' || *c == ')') tokens.push_back(Token(*c));
-			else if (!std::isspace(*c)) symBuf.push_back(*c);
-	
-			if ((*c == '(' || *c == ')' || std::isspace(*c)) && symBuf.length() > 0) {
-				tokens.push_back(Token(symBuf));
-				symBuf = std::string();
+
+			if (*c == '(' || *c == ')') {
+				if (symBuf.length() > 0) {
+					tokens.push_back(Token(symBuf));
+					symBuf = std::string();
+				}
+				tokens.push_back(Token(*c));
 			}
+			else if (std::isspace(*c)) {
+				if (symBuf.length() > 0) {
+					tokens.push_back(Token(symBuf));
+					symBuf = std::string();
+				}
+			}
+			else {
+				symBuf.push_back(*c);
+			}
+
+			// if (*c == '(' || *c == ')') tokens.push_back(Token(*c));
+			// else if (!std::isspace(*c)) symBuf.push_back(*c);
+	
+			// if ((*c == '(' || *c == ')' || std::isspace(*c))) {
+			// 	if (*c == '(') tokens.push_back(Token(*c));
+			// 	tokens.push_back(Token(symBuf));
+			// 	symBuf = std::string();
+			// }
 		}
 		c++;
 	}
@@ -150,6 +169,15 @@ LocationResult parseLocationDirective(ParserContext &ctx) {
 						return Webserv::UNEXPECTED_SYMBOL;
 					}
 				}
+				else if (sym == "maxRequestSize") {
+					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
+					if (ctx.it->getTag() != Webserv::Token::SYMBOL) return Webserv::UNEXPECTED_TOKEN;
+					std::stringstream s(std::string(ctx.it->getSym()));
+
+					uint maxSize;
+					s >> maxSize;
+					location.maxRequestSize = maxSize;
+				}
 				else return Webserv::UNEXPECTED_SYMBOL;
 				break;
 			case Webserv::Token::OPAREN:
@@ -184,8 +212,28 @@ ServerResult parseServerDirective(ParserContext& ctx) {
 				}
 				else if (sym == "serverName") {
 					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
-					if (ctx.it->getTag() != Webserv::Token::SYMBOL) return Webserv::UNEXPECTED_TOKEN;
-					server.serverName = Option<std::string>(ctx.it->getSym());
+					if (ctx.it->getTag() == Webserv::Token::SYMBOL) {
+						server.serverNames.insert(ctx.it->getSym());
+					}
+					else if (ctx.it->getTag() == Webserv::Token::OPAREN) {
+						while (ctx.it->getTag() != Webserv::Token::CPAREN) {
+							if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
+							switch (ctx.it->getTag()) {
+							case Webserv::Token::SYMBOL:{
+								server.serverNames.insert(ctx.it->getSym());
+								break;
+							}
+							case Webserv::Token::CPAREN: {
+								break;
+							}
+							default:
+								return Webserv::UNEXPECTED_TOKEN;
+							}
+						}
+					}
+					else {
+						return Webserv::UNEXPECTED_TOKEN;
+					}
 				}
 				else if (sym == "location") {
 					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
@@ -204,6 +252,15 @@ ServerResult parseServerDirective(ParserContext& ctx) {
 					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
 					if (ctx.it->getTag() != Webserv::Token::SYMBOL) return Webserv::UNEXPECTED_TOKEN;
 					server.defaultRoot = Option<std::string>(ctx.it->getSym());
+				}
+				else if (sym == "maxRequestSize") {
+					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
+					if (ctx.it->getTag() != Webserv::Token::SYMBOL) return Webserv::UNEXPECTED_TOKEN;
+					std::stringstream s(std::string(ctx.it->getSym()));
+
+					uint maxSize;
+					s >> maxSize;
+					server.maxRequestSize = maxSize;
 				}
 				else return Webserv::UNEXPECTED_SYMBOL;
 				break;
@@ -237,6 +294,15 @@ ParseResult parseConfig(ParserContext& ctx) {
 						else return res.getError();
 					}
 					else return Webserv::UNEXPECTED_TOKEN;
+				}
+				else if (sym == "maxRequestSize") {
+					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
+					if (ctx.it->getTag() != Webserv::Token::SYMBOL) return Webserv::UNEXPECTED_TOKEN;
+					std::stringstream s(std::string(ctx.it->getSym()));
+
+					uint maxSize;
+					s >> maxSize;
+					ctx.config.maxRequestSize = maxSize;
 				}
 				else return Webserv::UNEXPECTED_SYMBOL;
 				break;
@@ -279,7 +345,8 @@ Result<Config, ConfigError> Webserv::readConfigFromFile(std::string path) {
 	}
 
 	Config config;
-	config.defaultPort = 8081;
+	config.defaultPort = 8080;
+	config.maxRequestSize = 1000000; // TODO: maybe move this to a configurable macro?
 	std::vector<Token>::iterator tokenIt = tokens.begin();
 	std::vector<Token>::iterator tokenEnd = tokens.end();
 	ParserContext context = (ParserContext) {

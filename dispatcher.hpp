@@ -15,7 +15,12 @@
 #include "error.hpp"
 #include <sys/types.h>
 #include <vector>
+#ifdef OSX
+ #include <sys/event.h>
+#endif
+#ifdef LINUX
 #include <sys/epoll.h>
+#endif
 
 #define FD_READABLE (1 << 0)
 #define FD_WRITEABLE (1 << 1)
@@ -91,11 +96,19 @@ namespace Webserv {
 		// Attempts to remove a file descriptor from the set of active file descriptors.
 		bool tryUnregisterDescriptor(int);
 
+		void registerDescriptor(int);
+		void tryCloseDescriptor(int);
+
 		std::map<int, UniquePtr<IFDTask> > activeHandlers;
 		std::vector<UniquePtr<IFDTask> > insertionQueue;
 		std::set<int> activeDescriptors;
-		struct epoll_event events[EPOLL_EVENT_COUNT];
+		std::map<int, uint> aliveDescriptors;
+#ifdef OSX
+		int kqueueFd;
+#endif
+#ifdef LINUX
 		int epollFd;
+#endif
 	};
 }
 

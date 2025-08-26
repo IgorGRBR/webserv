@@ -3,9 +3,11 @@
 #include "error.hpp"
 #include "html.hpp"
 #include "http.hpp"
+#include <cctype>
 #include <cstring>
 #include <unistd.h>
 #include "webserv.hpp"
+#include "ystl.hpp"
 #include <sstream>
 
 typedef Webserv::Error Error;
@@ -75,4 +77,18 @@ std::string Webserv::readAll(std::ifstream& ifs) {
 	stream << ifs.rdbuf();
 
 	return stream.str();
+}
+
+Option<uint> Webserv::hexStrToUInt(const std::string& str) {
+	std::string lower = strToLower(str);
+	uint result = 0;
+	for (uint i = 0; i < lower.size(); i++) {
+		if (!std::isalnum(lower[i]) || lower[i] > 'f') {
+			return NONE;
+		}
+		char delta = std::isalpha(lower[i]) ? ('a' - 10) : '0';
+		result *= 16;
+		result += lower[i] - delta;
+	}
+	return result;
 }

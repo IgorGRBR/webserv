@@ -4,7 +4,10 @@
 #include <cstdlib>
 #include <fstream>
 #include "config.hpp"
+#include "dispatcher.hpp"
 #include "error.hpp"
+#include "http.hpp"
+#include "locationTree.hpp"
 #include "url.hpp"
 #include <netinet/in.h>
 #include <string>
@@ -13,7 +16,7 @@
 // This macro is a temporary solution for specifying the buffer size of HTTP request messages server can listen to.
 // TODO: Make it should be configureable within config file.
 #ifndef MSG_BUF_SIZE
-#define MSG_BUF_SIZE 4000
+#define MSG_BUF_SIZE 20000
 #endif
 
 // `Webserv` is the main namespace we are working with. Everything related to the web server functionality
@@ -36,7 +39,9 @@ namespace Webserv {
 		sockaddr_in address;
 		uint addressLen;
 		Url rootPath;
-		std::vector<std::pair<Url, Config::Server::Location> > locations;
+		uint maxRequestSize;
+		LocationTreeNode locations;
+		std::set<std::string> serverNames;
 	};
 
 	// This struct will contain all the necessary details about current connection to the client.
@@ -56,6 +61,14 @@ std::string makeDirectoryListing(const std::string& diskPath, const std::string&
 
 	// Reads everything from the input stream.
 	std::string readAll(std::ifstream&);
+
+	Result<IFDTask*, Error> handleRequest(
+		HTTPRequest& request,
+		LocationTreeNode::LocationSearchResult& query,
+		ServerData& sData,
+		int clientSocketFd);
+
+	Option<uint> hexStrToUInt(const std::string&);
 }
 
 #endif
