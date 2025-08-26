@@ -4,7 +4,6 @@ server (
 	location /awesome (
 		root ./exampleSite/
 		return 200
-		index awesome.html
 		dirListing
 		allowMethod POST
 		allowMethod GET

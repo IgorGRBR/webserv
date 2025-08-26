@@ -57,7 +57,7 @@ namespace Webserv {
 	// If `topLevel` is set to true, the generated listing must not contain a
 	// listing for the parent directory; in other words - no `..` allowed if
 	// `topLevel` is true.
-	std::string makeDirectoryListing(const std::string& path, bool topLevel = true);
+std::string makeDirectoryListing(const std::string& diskPath, const std::string& urlPath, bool topLevel = true);
 
 	// Reads everything from the input stream.
 	std::string readAll(std::ifstream&);
