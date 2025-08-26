@@ -83,7 +83,8 @@ namespace Webserv {
 				contentType = getContentType(indexFileUrl);
 			}
 			else { // Try to create directory listing
-				fileContent = makeDirectoryListing(respFilePath, tail.getSegments().size() == 0);
+				std::string urlPath = request.getPath().toString(true);
+				fileContent = makeDirectoryListing(respFilePath, urlPath, tail.getSegments().size() == 0);
 				contentType = HTML;
 			}
 			break;
