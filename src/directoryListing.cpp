@@ -5,8 +5,9 @@
 #include <sstream>
 #include <string>
 
-std::string Webserv::makeDirectoryListing(const std::string &diskPath, const std::string &urlPath, bool topLevel) {
+std::string Webserv::makeDirectoryListing(const std::string &diskPath, const std::string &urlPath, bool topLevel, bool fileUploading) {
     (void)topLevel;
+    (void)fileUploading;
     DIR *dir = opendir(diskPath.c_str());
     if (!dir) {
         return "<html><body>Could not open directory: " + diskPath + "</body></html>";
@@ -54,7 +55,20 @@ std::string Webserv::makeDirectoryListing(const std::string &diskPath, const std
              << timebuf << "  " << st.st_size << "\n";
     }
 
-    html << "</pre><hr></body></html>";
+    html << "</pre><hr>";
+    if (fileUploading) {
+        html << "File uploading is enabled.<br>"
+            "<form method=\"post\" enctype=\"multipart/form-data\">"
+            "<label for=\"file\">Pick a file!</label>"
+            "<br>"
+            "<input id=\"file\" name=\"file\" type=\"file\"/>"
+            "<br>"
+            // "<label for=\"fileName\">Type a file name!</label>"
+            // "<input id=\"fileName\" name=\"fileName\" type=\"text\"/>"
+            "<button>Upload</button>"
+            "</form>";
+    }
+    html << "</body></html>";
     closedir(dir);
     return html.str();
 }

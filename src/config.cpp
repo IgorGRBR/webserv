@@ -49,7 +49,7 @@ void tokenizeLine(std::vector<Token>& tokens, std::string& line, char& stringSta
 		symBuf = std::string();
 	}
 	const char* c = line.c_str();
-	while (*c != '\0') {
+	while (*c != '\0' && (stringState || *c != '#')) {
 		if (stringState) {
 			if (*c == '"' || *c == '\'') {
 				stringState = '\0';
@@ -153,6 +153,11 @@ LocationResult parseLocationDirective(ParserContext &ctx) {
 					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
 					if (ctx.it->getTag() != Webserv::Token::SYMBOL) return Webserv::UNEXPECTED_TOKEN;
 					location.index = ctx.it->getSym();
+				}
+				else if (sym == "fileUpload") {
+					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
+					if (ctx.it->getTag() != Webserv::Token::SYMBOL) return Webserv::UNEXPECTED_TOKEN;
+					location.fileUploadFieldId = ctx.it->getSym();
 				}
 				else if (sym == "allowMethod") { // Allow single method
 					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;

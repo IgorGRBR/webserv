@@ -46,6 +46,8 @@ namespace Webserv {
 
 				// Max HTTP request message body of the location.
 				Option<uint> maxRequestSize;
+
+				Option<std::string> fileUploadFieldId;
 			};
 
 			// A map of locations and their paths.

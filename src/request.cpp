@@ -50,6 +50,13 @@ namespace Webserv {
 		Url rootUrl = Url::fromString(root).get();
 		Url tail = request.getPath().tailDiff(path);
 
+		if (tail.getSegments().empty()
+		&& request.getMethod() == POST
+		&& location.fileUploadFieldId.isSome()) {
+			// TODO: handle file uploading here
+			return Error(Error::GENERIC_ERROR, "Not implemented (REMOVE ME)");
+		}
+
 		Url respFileUrl = rootUrl + tail;
 		std::string respFilePath = respFileUrl.toString(false);
 		std::cout << "Trying to load: " << respFilePath << std::endl;
@@ -84,7 +91,12 @@ namespace Webserv {
 			}
 			else { // Try to create directory listing
 				std::string urlPath = request.getPath().toString(true);
-				fileContent = makeDirectoryListing(respFilePath, urlPath, tail.getSegments().size() == 0);
+				fileContent = makeDirectoryListing(
+					respFilePath,
+					urlPath,
+					tail.getSegments().size() == 0,
+					location.fileUploadFieldId.isSome()
+				);
 				contentType = HTML;
 			}
 			break;

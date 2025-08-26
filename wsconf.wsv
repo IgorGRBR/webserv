@@ -1,3 +1,5 @@
+# This is a simple config file example
+
 server (
 	listen 8064
 	maxRequestSize 1024
@@ -13,7 +15,21 @@ server (
 	location /awesome/thingy (
 		root ./exampleSite/test
 		return 200
-		index cool.html
+		index "cool.html"
+	)
+
+	location /awesome/upload (
+		root ./exampleSite/upload/
+		return 200
+		dirListing
+		allowMethod POST
+		maxRequestSize 100000000
+		fileUpload file
+	)
+
+	location /awesome/download (
+		root ./exampleSite/upload/
+		allowMethod GET
 	)
 )
 
