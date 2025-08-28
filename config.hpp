@@ -106,6 +106,8 @@ namespace Webserv {
 		CONFIG_PARSING_ERROR,
 	};
 
+	std::string configErrorString(ConfigError);
+
 	// Attempts to read and parse configuration from the file provided by the `path`. Returns either a `Config` object,
 	// or an error that might have occured.
 	Result<Config, ConfigError> readConfigFromFile(std::string path);

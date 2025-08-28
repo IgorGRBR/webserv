@@ -1,5 +1,6 @@
 #include "dispatcher.hpp"
 #include "error.hpp"
+#include "tasks.hpp"
 #include "ystl.hpp"
 #include <string>
 #ifdef OSX
@@ -177,5 +178,39 @@ Option<Webserv::Error> FDTaskDispatcher::update() {
 		tryCloseDescriptor((*it)->getDescriptor());
 	}
 
+	return NONE;
+}
+
+Option<Webserv::Error> FDTaskDispatcher::oomUpdate() {
+	std::set<int> clientListenerFds;
+	std::vector<UniquePtr<IFDTask> > freedHandlers;
+
+	typedef std::map<int, UniquePtr<IFDTask> >::iterator IntIFDTaskMapIter;
+	for (IntIFDTaskMapIter it = activeHandlers.begin(); it != activeHandlers.end(); it++) {
+		ClientListener* cl = dynamic_cast<ClientListener*>(&it->second.ref());
+		if (!cl) {
+			freedHandlers.push_back(it->second);
+		}
+		else {
+			clientListenerFds.insert(it->first);
+		}
+	}
+
+	typedef std::vector<UniquePtr<IFDTask> >::iterator IFDTaskVecIter;
+	for (IFDTaskVecIter it = insertionQueue.begin(); it != insertionQueue.end(); it++) {
+		tryUnregisterDescriptor(it->ref().getDescriptor());
+	}
+	insertionQueue.clear();
+
+	for (std::vector<UniquePtr<IFDTask> >::iterator it = freedHandlers.begin(); it != freedHandlers.end(); it++) {
+		if (!tryUnregisterDescriptor((*it)->getDescriptor())) {
+			return Error(Error::GENERIC_ERROR, "Attempt to close non-existent descriptor");
+		}
+		if (activeHandlers.find((*it)->getDescriptor()) != activeHandlers.end()) {
+			activeHandlers.erase((*it)->getDescriptor());
+		}
+		tryCloseDescriptor((*it)->getDescriptor());
+	}
+	
 	return NONE;
 }

@@ -378,3 +378,23 @@ Option<unsigned char> Webserv::strToHttpMethod(std::string& str) {
 	}
 	return NONE;
 }
+
+std::string Webserv::configErrorString(ConfigError e) {
+	switch (e) {
+	case CONFIG_FILE_NOT_FOUND:
+		return "Config file was not found";
+	case UNEXPECTED_OPAREN:
+		return "Unexpected opening parens";
+	case UNEXPECTED_CPAREN:
+		return "Unexpected closing parens";
+	case UNEXPECTED_SYMBOL:
+		return "Unexpected symbol";
+	case UNEXPECTED_EOF:
+		return "Unexpected end-of-file";
+	case UNEXPECTED_TOKEN:
+		return "Unexpected token";
+	case CONFIG_PARSING_ERROR:
+		return "Unexpected parsing error";
+	}
+	return "Unknown config error";
+}

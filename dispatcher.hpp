@@ -85,6 +85,7 @@ namespace Webserv {
 		// on the availability of their file descriptors.
 		Option<Error> update();
 
+		Option<Error> oomUpdate();
 	private:
 		// Removing copying constructors significantly simplifies memory management of the tasks.
 		FDTaskDispatcher(const FDTaskDispatcher&); // No implementation

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <new>
 #include <ostream>
 #include <vector>
 #include "config.hpp"
@@ -78,30 +79,65 @@ int main(int argc, char* argv[]) {
 	// hexDecTests();
 	// Load the config
 	std::cout << "A webserver has started" << std::endl;
-	Config config = Webserv::readConfigFromFile(configPath).getValue(); // TODO: handle this better
+	Config config;
+	try {
+		Result<Config, Webserv::ConfigError> maybeConfig = Webserv::readConfigFromFile(configPath).getValue();
+		if (maybeConfig.isError()) {
+			std::cerr << Webserv::configErrorString(maybeConfig.getError()) << std::endl;
+			return 1;
+		}
+		config = maybeConfig.getValue();
+	}
+	catch (const std::bad_alloc& ex) {
+		std::cerr << "Out of memory exception when parsing config file." << std::endl;
+		return 1;
+	}
+
+	if (config.servers.size() == 0) {
+		std::cerr << "At least a single server directive must be provided in the config file." << std::endl;
+		return 1;
+	}
 
 	std::cout << "Running the server" << std::endl;
-
-	// Configure the initial client connection listeners
+	
 	FDTaskDispatcher dispatcher;
-	for (uint i = 0; i < config.servers.size(); i++) {
-		Result<ClientListener*, Error> maybeListener = ClientListener::tryMake(config, config.servers[i]);
-		if (maybeListener.isError()) {
-			std::cout << "Critical error when trying to construct a client listener: "
-				<< maybeListener.getError().getTagMessage() << std::endl;
+	try {
+		// Configure the initial client connection listeners
+		for (uint i = 0; i < config.servers.size(); i++) {
+			Result<ClientListener*, Error> maybeListener = ClientListener::tryMake(config, config.servers[i]);
+			if (maybeListener.isError()) {
+				std::cout << "Critical error when trying to construct a client listener: "
+					<< maybeListener.getError().getTagMessage() << std::endl;
+			}
+			else {
+				dispatcher.registerTask(maybeListener.getValue());
+			}
 		}
-		else {
-			dispatcher.registerTask(maybeListener.getValue());
-		}
+	}
+	catch (const std::bad_alloc& ex) {
+		std::cerr << "Out of memory exception when constructing crucial webserver tasks." << std::endl;
+		return 1;
 	}
 	
 	// Run the task-event loop
 	bool running = true;
 	while (running) {
-		Option<Error> error = dispatcher.update();
-		if (error.isSome()) {
-			running = false;
-			std::cout << "Got critical unhandled error: " << error.get().getTagMessage() << "\n" << error.get().message << std::endl;
+		try {
+			Option<Error> error = dispatcher.update();
+			if (error.isSome()) {
+				running = false;
+				std::cout << "Got critical unhandled error: " << error.get().getTagMessage() << "\n" << error.get().message << std::endl;
+			}
+		}
+		catch (const std::bad_alloc& ex) {
+			std::cout << "Out of memory exception during server runtime, trying to recover..." << std::endl;
+			try {
+				dispatcher.oomUpdate();
+			}
+			catch (const std::bad_alloc& ex) {
+				std::cout << "Recovery failed, shutting down!" << std::endl;
+				return 1;
+			}
 		}
 	}
 
