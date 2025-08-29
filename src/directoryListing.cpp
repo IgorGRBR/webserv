@@ -7,7 +7,7 @@
 
 std::string Webserv::makeDirectoryListing(const std::string &diskPath, const std::string &urlPath, bool topLevel, bool fileUploading) {
     (void)topLevel;
-    (void)fileUploading;
+    // fileUploading = true; // (DEBUG) TEMPORARY HACK TO ENABLE FILE UPLOADING
     DIR *dir = opendir(diskPath.c_str());
     if (!dir) {
         return "<html><body>Could not open directory: " + diskPath + "</body></html>";

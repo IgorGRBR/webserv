@@ -54,7 +54,23 @@ namespace Webserv {
 		&& request.getMethod() == POST
 		&& location.fileUploadFieldId.isSome()) {
 			// TODO: handle file uploading here
-			return Error(Error::GENERIC_ERROR, "Not implemented (REMOVE ME)");
+			// 1) Get the uploaded file from the request (Note: seems to work for .txt and .html but not for .jpeg?)
+			std::string requestData = request.getData();
+			std::cout << "(DEBUG) Received file data:\n" << requestData << std::endl; //This is an example of the received file data: ------WebKitFormBoundaryG8fEUJTawKXLd6iV
+			//Content-Disposition: form-data; name="file"; filename="cool.txt"
+			//Content-Type: text/plain
+
+			//this is a cool file
+			//------WebKitFormBoundaryG8fEUJTawKXLd6iV--
+			// 2) Validate the uploaded file
+			Option<std::string> requestHeader = request.getHeader("Content-Type");
+			if (requestHeader.isNone()) {
+				return Error(Error::HTTP_ERROR, "Missing Content-Type header"); //Maybe it needs a more specific error?
+			}
+			std::cout << "(DEBUG) Received Content-Type header:\n" << requestHeader.get() << std::endl; //This is an example of the content-type header: multipart/form-data; boundary=----WebKitFormBoundaryG8fEUJTawKXLd6iV
+			// 3) Parse the request body
+			// 4) Store the uploaded file in exampleSite/upload
+			// return Error(Error::GENERIC_ERROR, "Not implemented (REMOVE ME)");
 		}
 
 		Url respFileUrl = rootUrl + tail;
