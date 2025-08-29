@@ -23,6 +23,15 @@ namespace Webserv {
 		return false;
 	}
 
+	TaskResult handleCGI(
+		const Url& path,
+		const Config::Server::Location& location,
+		HTTPRequest& request,
+		ServerData& sData
+	) {
+		return Error(Error::GENERIC_ERROR);
+	}
+
 	TaskResult handleLocation(
 		const Url& path,
 		const Config::Server::Location& location,
@@ -49,6 +58,10 @@ namespace Webserv {
 		Option<std::string> fileContent = NONE;
 		Url rootUrl = Url::fromString(root).get();
 		Url tail = request.getPath().tailDiff(path);
+
+		if (location.allowCGI && (request.getMethod() == POST || request.getMethod() == GET)) {
+			
+		}
 
 		if (tail.getSegments().empty()
 		&& request.getMethod() == POST

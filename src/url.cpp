@@ -1,155 +1,188 @@
 #include "url.hpp"
+#include "ystl.hpp"
 #include <cstdio>
 #include <sstream>
 #include <string>
 #include <sys/types.h>
 #include <vector>
 
-typedef Webserv::Url Url;
-
-Url::Url(): segments(), protocol(), port(0) {}
-
-Option<Url> Url::fromString(const std::string& str) {
-	Url uri;
-	std::string segment;
-	std::stringstream urlStream(str);
-
-	if (getline(urlStream, segment, '/') && str[0] != '/') {
-		// Try parse protocol
-		if (segment[segment.length() - 1] == ':')
-			uri.protocol = segment.substr(0, segment.length() - 1);
-		
-		if (uri.protocol.length() > 0) {
-			getline(urlStream, segment, '/');
-			if (segment.length() > 0) return NONE;
-			getline(urlStream, segment, '/');
+namespace Webserv {
+	Url::Url(): segments(), protocol(), port(0) {}
+	
+	Option<Url> Url::fromString(const std::string& str) {
+		Url url;
+		std::string segment;
+		std::stringstream urlStream(str);
+	
+		if (getline(urlStream, segment, '/') && str[0] != '/') {
+			// Try parse protocol
+			if (segment[segment.length() - 1] == ':')
+				url.protocol = segment.substr(0, segment.length() - 1);
+			
+			if (url.protocol.length() > 0) {
+				getline(urlStream, segment, '/');
+				if (segment.length() > 0) return NONE;
+				getline(urlStream, segment, '/');
+			}
+			if (segment.find(':') != segment.npos) {
+				std::string portStr;
+				std::stringstream portStream(segment);
+	
+				getline(portStream, portStr, ':');
+				url.segments.push_back(portStr);
+				portStream >> url.port;
+			}
+			else {
+				if (segment.length() > 0) url.segments.push_back(segment);
+			}
 		}
-		if (segment.find(':') != segment.npos) {
-			std::string portStr;
-			std::stringstream portStream(segment);
-
-			getline(portStream, portStr, ':');
-			uri.segments.push_back(portStr);
-			portStream >> uri.port;
+	
+		std::string queryString;
+		while (getline(urlStream, segment, '/')) {
+			size_t questionMark = segment.find("?");
+			if (questionMark != segment.npos) {
+				std::string finalSegment = segment.substr(0, questionMark);
+				queryString = segment.substr(questionMark + 1, segment.size() - questionMark - 1);
+				break;
+			}
+			if (segment.length() > 0) url.segments.push_back(segment);
 		}
-		else {
-			if (segment.length() > 0) uri.segments.push_back(segment);
+
+		// Parse query
+		if (!queryString.empty()) {
+			std::stringstream queryStream(queryString);
+			std::string queryElem;
+			while (getline(queryStream, queryElem, '&')) {
+				size_t equalSign = queryElem.find("=");
+				if (equalSign == queryElem.npos) {
+					return NONE;
+				}
+				std::string key = queryElem.substr(0, equalSign);
+				std::string value = queryElem.substr(equalSign + 1, queryElem.size() - equalSign - 1);
+				url.query[key] = value;
+			}
 		}
+	
+		return url;
 	}
-
-	while (getline(urlStream, segment, '/'))
-		if (segment.length() > 0) uri.segments.push_back(segment);
-
-	return uri;
-}
-
-const std::vector<std::string>& Url::getSegments() const {
-	return segments;
-}
-
-const std::string& Url::getProtocol() const {
-	return protocol;
-}
-
-ushort Url::getPort() const {
-	return port;
-}
-
-std::string Url::toString(bool headShash) const {
-	std::stringstream result;
-	if (protocol.length() > 0) {
-		result << protocol << ":/";
+	
+	const std::vector<std::string>& Url::getSegments() const {
+		return segments;
 	}
-	if (headShash or protocol.length()) result << "/";
-	for (std::vector<std::string>::const_iterator it = segments.begin(); it != segments.end(); it++) {
-		if (it == segments.begin()) {
-			result << *it;
-			if (port > 0) result << ":" << port;
+	
+	const std::string& Url::getProtocol() const {
+		return protocol;
+	}
+	
+	ushort Url::getPort() const {
+		return port;
+	}
+	
+	std::string Url::toString(bool headShash) const {
+		std::stringstream result;
+		if (protocol.length() > 0) {
+			result << protocol << ":/";
 		}
-		else {
-			result << "/" << *it;
+		if (headShash or protocol.length()) result << "/";
+		for (std::vector<std::string>::const_iterator it = segments.begin(); it != segments.end(); it++) {
+			if (it == segments.begin()) {
+				result << *it;
+				if (port > 0) result << ":" << port;
+			}
+			else {
+				result << "/" << *it;
+			}
 		}
+		return result.str();
 	}
-	return result.str();
-}
-
-bool Url::operator==(const Url& other) const {
-	return port == other.port && protocol == other.protocol && segments == other.segments;
-}
-
-bool Url::operator!=(const Url& other) const {
-	return !(*this == other);
-}
-
-Url Url::operator+(const Url& other) const {
-	Url newUrl = *this;
-	for (std::vector<std::string>::const_iterator it = other.segments.begin(); it != other.segments.end(); it++) {
-		newUrl.segments.push_back(*it);
+	
+	bool Url::operator==(const Url& other) const {
+		return port == other.port && protocol == other.protocol && segments == other.segments;
 	}
-	return newUrl;
-}
-
-bool Url::matchSegments(const Url& other) const {
-	if (segments.size() < other.segments.size()) return false;
-	for (uint i = 0; i < other.segments.size(); i++) {
-		if (segments[i] != other.segments[i])
-			return false;
+	
+	bool Url::operator!=(const Url& other) const {
+		return !(*this == other);
 	}
-	return true;
-}
-
-Url Url::tailDiff(const Url& other) const {
-	if (!matchSegments(other)) return Url();
-	if (segments.size() > other.segments.size()) {
-		Url result;
-		for (uint i = other.segments.size(); i < segments.size(); i++) {
-			result.segments.push_back(segments[i]);
+	
+	Url Url::operator+(const Url& other) const {
+		Url newUrl = *this;
+		for (std::vector<std::string>::const_iterator it = other.segments.begin(); it != other.segments.end(); it++) {
+			newUrl.segments.push_back(*it);
+		}
+		return newUrl;
+	}
+	
+	bool Url::matchSegments(const Url& other) const {
+		if (segments.size() < other.segments.size()) return false;
+		for (uint i = 0; i < other.segments.size(); i++) {
+			if (segments[i] != other.segments[i])
+				return false;
+		}
+		return true;
+	}
+	
+	Url Url::tailDiff(const Url& other) const {
+		if (!matchSegments(other)) return Url();
+		if (segments.size() > other.segments.size()) {
+			Url result;
+			for (uint i = other.segments.size(); i < segments.size(); i++) {
+				result.segments.push_back(segments[i]);
+			}
+			return result;
+		}
+		else if (other.segments.size() > segments.size()) {
+			Url result;
+			for (uint i = segments.size(); i < other.segments.size(); i++) {
+				result.segments.push_back(other.segments[i]);
+			}
+			return result;
+		}
+		return Url();
+	}
+	
+	std::vector<std::string> Url::tailDiffVec(const Url& other) const {
+		std::vector<std::string> result;
+		if (!matchSegments(other)) return result;
+		if (segments.size() > other.segments.size()) {
+			for (uint i = other.segments.size(); i < segments.size(); i++) {
+				result.push_back(segments[i]);
+			} 
+		}
+		else if (other.segments.size() > segments.size()) {
+			for (uint i = segments.size(); i < other.segments.size(); i++) {
+				result.push_back(other.segments[i]);
+			}
 		}
 		return result;
 	}
-	else if (other.segments.size() > segments.size()) {
-		Url result;
-		for (uint i = segments.size(); i < other.segments.size(); i++) {
-			result.segments.push_back(other.segments[i]);
+	
+	Option<std::string> Url::getExtension() const {
+		if (segments.size() == 0) return NONE;
+		std::string finalSegmentStr = trimString(segments.back(), '.');
+		if (finalSegmentStr.find(".") == std::string::npos) {
+			return NONE;
 		}
-		return result;
-	}
-	return Url();
-}
 
-std::vector<std::string> Url::tailDiffVec(const Url& other) const {
-	std::vector<std::string> result;
-	if (!matchSegments(other)) return result;
-	if (segments.size() > other.segments.size()) {
-		for (uint i = other.segments.size(); i < segments.size(); i++) {
-			result.push_back(segments[i]);
-		} 
+		std::stringstream finalSegmentStream(finalSegmentStr);
+		std::string line;
+		std::string extension;
+		while (getline(finalSegmentStream, line, '.')) {
+			extension = line;
+		};
+		return extension;
 	}
-	else if (other.segments.size() > segments.size()) {
-		for (uint i = segments.size(); i < other.segments.size(); i++) {
-			result.push_back(other.segments[i]);
+	
+	Url Url::tail() const {
+		Url newUrl = *this;
+		if (newUrl.segments.size() > 0) {
+			newUrl.segments.erase(newUrl.segments.begin());
 		}
+		return newUrl;
 	}
-	return result;
-}
 
-Option<std::string> Url::getExtension() const {
-	if (segments.size() == 0) return NONE;
-	std::stringstream finalSegment(segments.back());
-	std::string line;
-	if (!getline(finalSegment, line, '.')) {
-		return NONE;
+	Option<std::string> Url::getQuery(const std::string& key) const {
+		if (query.find(key) == query.end())
+			return NONE;
+		return query.at(key);
 	}
-	if (!getline(finalSegment, line, '.')) {
-		return NONE;
-	}
-	return line;
-}
-
-Url Url::tail() const {
-	Url newUrl = *this;
-	if (newUrl.segments.size() > 0) {
-		newUrl.segments.erase(newUrl.segments.begin());
-	}
-	return newUrl;
 }

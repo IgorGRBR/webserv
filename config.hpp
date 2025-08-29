@@ -48,6 +48,8 @@ namespace Webserv {
 				Option<uint> maxRequestSize;
 
 				Option<std::string> fileUploadFieldId;
+
+				bool allowCGI;
 			};
 
 			// A map of locations and their paths.
@@ -74,6 +76,8 @@ namespace Webserv {
 
 		// Default max HTTP request message body.
 		uint maxRequestSize;
+
+		std::map<std::string, std::string> cgiBinds;
 	};
 
 	// Token parsing stuff. Only used to parse the configuration, which is basically solved at this point, so no

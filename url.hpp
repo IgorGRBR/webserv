@@ -2,6 +2,7 @@
 #define URL_HPP
 
 #include "ystl.hpp"
+#include <map>
 #include <string>
 #include <sys/types.h>
 #include <vector>
@@ -60,10 +61,13 @@ namespace Webserv {
 
 		// Returns the tail of the url (Url minus the first segment element).
 		Url tail() const;
+
+		Option<std::string> getQuery(const std::string&) const;
 	private:
 		std::vector<std::string> segments;
 		std::string protocol;
 		ushort port; // Maybe this shouldn't be in Url class?
+		std::map<std::string, std::string> query;
 	};
 }
 

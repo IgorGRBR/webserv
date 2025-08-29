@@ -111,6 +111,7 @@ LocationResult parseLocationDirective(ParserContext &ctx) {
 	if (ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
 	
 	Config::Server::Location location;
+	location.allowCGI = false;
 	std::string sym;
 	location.allowedMethods = HTTP_ALL_FLAGS;
 	while (ctx.it != ctx.end) {
@@ -182,6 +183,9 @@ LocationResult parseLocationDirective(ParserContext &ctx) {
 					uint maxSize;
 					s >> maxSize;
 					location.maxRequestSize = maxSize;
+				}
+				else if (sym == "allowCGI") {
+					location.allowCGI = true;
 				}
 				else return Webserv::UNEXPECTED_SYMBOL;
 				break;
@@ -309,6 +313,32 @@ ParseResult parseConfig(ParserContext& ctx) {
 					s >> maxSize;
 					ctx.config.maxRequestSize = maxSize;
 				}
+				else if (sym == "cgiBinds") {
+					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
+					if (ctx.it->getTag() == Webserv::Token::OPAREN) {
+						while (true) {
+							if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
+							if (ctx.it->getTag() == Webserv::Token::CPAREN)
+								break;
+
+							if (ctx.it->getTag() != Webserv::Token::SYMBOL) {
+								return Webserv::UNEXPECTED_TOKEN;
+							}
+							std::string fileExt = ctx.it->getSym();
+							if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
+
+							if (ctx.it->getTag() != Webserv::Token::SYMBOL) {
+								return Webserv::UNEXPECTED_TOKEN;
+							}
+							std::string execPath = ctx.it->getSym();
+
+							ctx.config.cgiBinds[fileExt] = execPath;
+						}
+					}
+					else {
+						return Webserv::UNEXPECTED_TOKEN;
+					}
+				}
 				else return Webserv::UNEXPECTED_SYMBOL;
 				break;
 			case Webserv::Token::OPAREN:
@@ -352,6 +382,8 @@ Result<Config, ConfigError> Webserv::readConfigFromFile(std::string path) {
 	Config config;
 	config.defaultPort = 8080;
 	config.maxRequestSize = 1000000; // TODO: maybe move this to a configurable macro?
+	config.cgiBinds["py"] = "/usr/bin/python3";
+	config.cgiBinds["lua"] = "/usr/bin/lua5.4";
 	std::vector<Token>::iterator tokenIt = tokens.begin();
 	std::vector<Token>::iterator tokenEnd = tokens.end();
 	ParserContext context = (ParserContext) {

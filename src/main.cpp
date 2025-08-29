@@ -16,7 +16,7 @@ typedef Webserv::FDTaskDispatcher FDTaskDispatcher;
 typedef Webserv::ClientListener ClientListener;
 
 void urlTests() {
-	Webserv::Url test = Webserv::Url::fromString("localhost:655/search/thing").get();
+	Webserv::Url test = Webserv::Url::fromString("localhost:655/search/thing?stuff=1&otherThing=2").get();
 
 	std::cout << test.getProtocol() << std::endl;
 	for (std::vector<std::string>::const_iterator it = test.getSegments().begin(); it != test.getSegments().end(); it++) {

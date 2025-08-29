@@ -86,6 +86,24 @@ namespace Webserv {
 		HTTPReturnCode responseCode;
 		HTTPContentType contentType;
 	};
+
+	class CGIReader: public IFDTask {
+	public:
+		Result<bool, Error> runTask(FDTaskDispatcher&);
+		int getDescriptor() const;
+		IOMode getIOMode() const;
+	private:
+	};
+
+	class CGIWriter: public IFDTask {
+	public:
+		Result<bool, Error> runTask(FDTaskDispatcher&);
+		int getDescriptor() const;
+		IOMode getIOMode() const;
+	private:
+	};
+
+	Result<std::pair<CGIWriter, CGIReader>, Error> makeCGIPipeline(const std::map<std::string, std::string>&);
 }
 
 #endif
