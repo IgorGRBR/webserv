@@ -49,7 +49,7 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 	std::string bufStr = std::string(buffer);
 	(void)readResult;
 #ifdef DEBUG
-	// std::cout << "Read result: " << readResult << "\nContent:\n" << bufStr << std::endl;
+	std::cout << "Read result: " << readResult << "\nContent:\n" << bufStr << std::endl;
 #endif
 	Result<HTTPRequest::Builder::State, Error> state = reqBuilder.appendData(bufStr);
 
@@ -129,7 +129,7 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 					return Error(Error::SHUTDOWN_SIGNAL);
 				}
 				else {
-					Result<IFDTask*, Error> nextTask = handleRequest(
+					Result<SharedPtr<IFDTask>, Error> nextTask = handleRequest(
 						request.ref(),
 						location.get(),
 						sData,
@@ -139,6 +139,10 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 						SEND_ERROR(dispatcher, nextTask.getError());
 					}
 					dispatcher.registerTask(nextTask.getValue());
+					Option<SharedPtr<CGIReader> > maybeReader = nextTask.getValue().tryAs<CGIReader>();
+					if (maybeReader.isSome() && maybeReader.get()->getWriter().isSome()) {
+						dispatcher.registerTask(maybeReader.get()->getWriter().get().tryAs<IFDTask>().get());
+					}
 				}
 				return false;
 			}

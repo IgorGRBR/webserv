@@ -14,7 +14,7 @@ typedef Webserv::ClientListener ClientListener;
 
 ClientListener::ClientListener(const ServerData& data, int fd): sData(data), socketFd(fd) {}
 
-Result<ClientListener*, Error> ClientListener::tryMake(Config& config, Config::Server &serverConfig) {
+Result<ClientListener*, Error> ClientListener::tryMake(Config& config, Config::Server &serverConfig, char* envp[]) {
 	ServerData sData;
 
 	ushort port = serverConfig.port.getOr(config.defaultPort);
@@ -41,8 +41,9 @@ Result<ClientListener*, Error> ClientListener::tryMake(Config& config, Config::S
 	}
 
 	sData.maxRequestSize = serverConfig.maxRequestSize.getOr(config.maxRequestSize);
-
 	sData.serverNames = serverConfig.serverNames;
+	sData.cgiInterpreters = config.cgiBinds;
+	sData.envp = envp;
 
 	// So, lets start with making a socket object
 	sData.socketFd = socket(AF_INET, SOCK_STREAM, 0);

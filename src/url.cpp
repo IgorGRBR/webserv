@@ -1,4 +1,5 @@
 #include "url.hpp"
+#include "webserv.hpp"
 #include "ystl.hpp"
 #include <cstdio>
 #include <sstream>
@@ -7,7 +8,7 @@
 #include <vector>
 
 namespace Webserv {
-	Url::Url(): segments(), protocol(), port(0) {}
+	Url::Url(): segments(), protocol(), port(0), absolute(false) {}
 	
 	Option<Url> Url::fromString(const std::string& str) {
 		Url url;
@@ -36,6 +37,8 @@ namespace Webserv {
 				if (segment.length() > 0) url.segments.push_back(segment);
 			}
 		}
+		else if (str[0] == '/')
+			url.absolute = true;
 	
 		std::string queryString;
 		while (getline(urlStream, segment, '/')) {
@@ -78,12 +81,13 @@ namespace Webserv {
 		return port;
 	}
 	
-	std::string Url::toString(bool headShash) const {
+	std::string Url::toString(bool headSlash, bool localFS) const {
+		headSlash = headSlash || absolute;
 		std::stringstream result;
-		if (protocol.length() > 0) {
+		if (!localFS && protocol.length() > 0) {
 			result << protocol << ":/";
 		}
-		if (headShash or protocol.length()) result << "/";
+		if (headSlash or protocol.length()) result << "/";
 		for (std::vector<std::string>::const_iterator it = segments.begin(); it != segments.end(); it++) {
 			if (it == segments.begin()) {
 				result << *it;
@@ -93,11 +97,26 @@ namespace Webserv {
 				result << "/" << *it;
 			}
 		}
+		if (!localFS && !query.empty()) {
+			result << "?";
+			bool first = true;
+			for (std::map<std::string, std::string>::const_iterator it = query.begin(); it != query.end(); it++) {
+				if (!first) {
+					result << "&";
+				}
+				first = false;
+				result << it->first << "=" << it->second;
+			}
+		}
 		return result.str();
 	}
 	
 	bool Url::operator==(const Url& other) const {
-		return port == other.port && protocol == other.protocol && segments == other.segments;
+		return absolute == other.absolute
+			&& port == other.port
+			&& protocol == other.protocol
+			&& segments == other.segments
+			&& query == other.query;
 	}
 	
 	bool Url::operator!=(const Url& other) const {
@@ -158,18 +177,24 @@ namespace Webserv {
 	
 	Option<std::string> Url::getExtension() const {
 		if (segments.size() == 0) return NONE;
-		std::string finalSegmentStr = trimString(segments.back(), '.');
-		if (finalSegmentStr.find(".") == std::string::npos) {
-			return NONE;
-		}
+		return getFileExtension(segments.back());
+	}
 
-		std::stringstream finalSegmentStream(finalSegmentStr);
-		std::string line;
-		std::string extension;
-		while (getline(finalSegmentStream, line, '.')) {
-			extension = line;
-		};
-		return extension;
+	Url Url::head() const {
+		Url newUrl = *this;
+		if (newUrl.segments.size() > 0) {
+			newUrl.segments = std::vector<std::string>();
+			newUrl.segments.push_back(segments[0]);
+		}
+		return newUrl;
+	}
+
+	Url Url::exceptLast() const {
+		Url newUrl = *this;
+		if (newUrl.segments.size() > 0) {
+			newUrl.segments.pop_back();
+		}
+		return newUrl;
 	}
 	
 	Url Url::tail() const {

@@ -32,7 +32,7 @@ namespace Webserv {
 		Option<std::string> getExtension() const;
 
 		// Converts the `Url` object to string.
-		std::string toString(bool headShash = true) const;
+		std::string toString(bool headSlash = true, bool localFS = false) const;
 
 		// Checks if two `Url` objects are equal.
 		bool operator==(const Url&) const;
@@ -62,12 +62,17 @@ namespace Webserv {
 		// Returns the tail of the url (Url minus the first segment element).
 		Url tail() const;
 
+		Url head() const;
+
+		Url exceptLast() const;
+
 		Option<std::string> getQuery(const std::string&) const;
 	private:
 		std::vector<std::string> segments;
 		std::string protocol;
 		ushort port; // Maybe this shouldn't be in Url class?
 		std::map<std::string, std::string> query;
+		bool absolute;
 	};
 }
 

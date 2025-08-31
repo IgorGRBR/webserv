@@ -93,7 +93,6 @@ Result<HTTPRequest, HTTPRequestError> Webserv::HTTPRequest::fromText(std::string
 		return INVALID_REQUEST; // TODO: a better error message
 	}
 
-	// Rest of the messages - ignore for now
 	bool emptyLine = false;
 	while (std::getline(s, line)) {
 		if (line == "" || line == "\r") {
@@ -135,6 +134,13 @@ const std::string& Webserv::HTTPRequest::getData() const {
 
 HTTPMethod Webserv::HTTPRequest::getMethod() const {
 	return method;
+};
+
+bool Webserv::HTTPRequest::isForm() const {
+	Option<std::string> maybeContentType = getHeader("Content-Type");
+	if (maybeContentType.isNone()) return false;
+	return maybeContentType.get().find("multipart/form-data") != std::string::npos;
+
 };
 
 Option<uint> Webserv::HTTPRequest::getContentLength() const {

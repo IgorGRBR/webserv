@@ -65,6 +65,14 @@ namespace Webserv {
 		virtual void consumeFileData(const std::string &) = 0;
 	};
 
+	class IProcessTask {
+	public:
+		virtual ~IProcessTask();
+
+		virtual void onProcessExit(FDTaskDispatcher&) = 0;
+		virtual int getPID() const = 0;
+	};
+
 	// `FDTaskDispatcher` is responsible for maintaining a queue of pending tasks, maintaining a list of currently active tasks
 	// and updating their states. It also manages the state of `epoll` instance.
 	class FDTaskDispatcher {
@@ -78,12 +86,14 @@ namespace Webserv {
 
 		// Adds the task to the queue, Note that after passing `task` to this method, its lifetime will be managed by the
 		// `FDTaskDispatcher`!
-		void registerTask(IFDTask* task);
+		void registerTask(SharedPtr<IFDTask> task);
 
 		// Executes a number of active tasks, based on the list of available file descriptors returned from `epoll_wait`.
 		// Completed tasks are removed from the active task list and deleted. New tasks are added to the active tasks list based
 		// on the availability of their file descriptors.
 		Option<Error> update();
+
+		void removeByFd(int fd);
 
 	private:
 		// Removing copying constructors significantly simplifies memory management of the tasks.
@@ -99,10 +109,14 @@ namespace Webserv {
 		void registerDescriptor(int);
 		void tryCloseDescriptor(int);
 
-		std::map<int, UniquePtr<IFDTask> > activeHandlers;
-		std::vector<UniquePtr<IFDTask> > insertionQueue;
+		Option<Error> updateProcessTasks();
+
+		std::map<int, SharedPtr<IFDTask> > activeHandlers;
+		std::vector<SharedPtr<IFDTask> > insertionQueue;
 		std::set<int> activeDescriptors;
 		std::map<int, uint> aliveDescriptors;
+		std::map<int, SharedPtr<IProcessTask> > processTasks;
+		std::vector<SharedPtr<IProcessTask> > makedForRemovalPTasks;
 #ifdef OSX
 		int kqueueFd;
 #endif
@@ -111,11 +125,5 @@ namespace Webserv {
 #endif
 	};
 }
-
-class Thing;
-class Thing {
-public:
-	SharedPtr<Thing> thing2;
-};
 
 #endif

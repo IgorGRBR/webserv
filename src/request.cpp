@@ -4,8 +4,9 @@
 #include "http.hpp"
 #include "tasks.hpp"
 #include "webserv.hpp"
+#include "ystl.hpp"
 
-typedef Result<Webserv::IFDTask*, Webserv::Error> TaskResult;
+typedef Result<SharedPtr<Webserv::IFDTask>, Webserv::Error> TaskResult;
 typedef Webserv::Config::Server::Location Location;
 
 namespace Webserv {
@@ -24,12 +25,61 @@ namespace Webserv {
 	}
 
 	TaskResult handleCGI(
-		const Url& path,
+		const Url& root,
+		const Url& rest,
 		const Config::Server::Location& location,
 		HTTPRequest& request,
 		ServerData& sData
 	) {
-		return Error(Error::GENERIC_ERROR);
+		(void)location;
+		// First - determine what kind of interpreter to run for the CGI
+		if (rest.getSegments().empty()) {
+			return Error(Error::GENERIC_ERROR, "No script was selected");
+		}
+
+		Url scriptLocation = root + rest.head();
+		std::string extension = scriptLocation.getExtension().getOr("");
+		std::string interpPath;
+		if (extension.empty()) {
+			interpPath = "";
+		}
+		else {
+			if (sData.cgiInterpreters.find(extension) == sData.cgiInterpreters.end()) {
+				return Error(Error::GENERIC_ERROR, "Could not find appropriate interpreter for the provided file extension");
+			}
+			interpPath = sData.cgiInterpreters[extension];
+		}
+
+		Option<Url> maybeInterpLocation = Url::fromString(interpPath);
+		if (maybeInterpLocation.isNone()) {
+			return Error(Error::FILE_NOT_FOUND, "Interpreter was not found");
+		}
+
+		// Now construct the pipeline.
+		Result<CGIPipeline, Error> maybePipeline = makeCGIPipeline(
+			maybeInterpLocation.get(),
+			scriptLocation,
+			rest.tail(),
+			sData.envp
+		);
+		if (maybePipeline.isError())
+			return maybePipeline.getError();
+
+		std::string cgiStdinData;
+		// if (request.isForm()) {
+		// 	Result<Form, Error> maybeForm = Form::fromRequest(request);
+		// 	if (maybeForm.isError()) return maybeForm.getError();
+		// 	const Form& form = maybeForm.getValue();
+		// 	// cgiStdinData = form.toCGIString();
+		// }
+		// else {
+		// }
+		cgiStdinData = request.getData();
+
+		CGIPipeline& pipeline = maybePipeline.getValue();
+		pipeline.first->consumeFileData(cgiStdinData);
+
+		return pipeline.second.tryAs<IFDTask>().get();
 	}
 
 	TaskResult handleLocation(
@@ -60,7 +110,7 @@ namespace Webserv {
 		Url tail = request.getPath().tailDiff(path);
 
 		if (location.allowCGI && (request.getMethod() == POST || request.getMethod() == GET)) {
-			
+			return handleCGI(rootUrl, tail, location, request, sData);
 		}
 
 		if (tail.getSegments().empty()
@@ -123,7 +173,7 @@ namespace Webserv {
 			}
 			response.getValue()->setResponseData(fileContent.get());
 			response.getValue()->setResponseContentType(contentType);
-			return response.getValue();
+			return SharedPtr<IFDTask>(response.getValue());
 		}
 		else {
 			return Error(Error::FILE_NOT_FOUND, respFilePath);

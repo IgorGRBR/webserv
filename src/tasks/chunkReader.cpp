@@ -14,7 +14,7 @@ namespace Webserv {
 		specifiedSize(),
 		sizeLimit(limit),
 		size(0) {
-			(void)sizeLimit; // <= here
+			(void)sizeLimit;
 		};
 
 	Result<bool, Error> ChunkReader::runTask(FDTaskDispatcher& dispatcher) {

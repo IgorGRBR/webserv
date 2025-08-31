@@ -32,12 +32,12 @@ server (
 		allowMethod GET
 	)
 
-	location /awesome/cgi {
+	location /awesome/cgi (
 		root ./exampleSite/cgi
 		allowMethod GET
 		allowMethod POST
 		allowCGI
-	}
+	)
 )
 
 server (

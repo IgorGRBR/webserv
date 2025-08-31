@@ -35,6 +35,8 @@ const char* Webserv::Error::getTagMessage() const {
 			return "File not found";
 		case ALLOC_ERROR:
 			return "Allocation failure";
+		case FORM_PARSING_ERROR:
+			return "Error when parsing HTTP form";
 	}
 	return "Unknown";
 }
@@ -53,6 +55,7 @@ Webserv::HTTPReturnCode Webserv::Error::getHTTPCode() const {
         case RESOURCE_NOT_FOUND: return HTTP_NOT_FOUND;
         case FILE_NOT_FOUND: return HTTP_NOT_FOUND;
 		case ALLOC_ERROR: return HTTP_INTERNAL_SERVER_ERROR;
+		case FORM_PARSING_ERROR: return HTTP_INTERNAL_SERVER_ERROR;
 	}
 	return HTTP_NONE;
 }

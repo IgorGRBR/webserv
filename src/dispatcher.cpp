@@ -1,6 +1,7 @@
 #include "dispatcher.hpp"
 #include "error.hpp"
 #include "ystl.hpp"
+#include <cstdlib>
 #include <string>
 #ifdef OSX
 #include <sys/event.h>
@@ -12,6 +13,7 @@
 #include <utility>
 #include <vector>
 #include <fcntl.h>
+#include <sys/wait.h>
 
 typedef Webserv::FDTaskDispatcher FDTaskDispatcher;
 typedef Webserv::IFDTask IFDTask;
@@ -20,6 +22,8 @@ typedef Webserv::IFDConsumer IFDConsumer;
 IFDTask::~IFDTask() {}
 
 IFDConsumer::~IFDConsumer() {}
+
+Webserv::IProcessTask::~IProcessTask() {};
 
 FDTaskDispatcher::FDTaskDispatcher() {
 #ifdef LINUX
@@ -31,7 +35,7 @@ FDTaskDispatcher::FDTaskDispatcher() {
 }
 
 FDTaskDispatcher::~FDTaskDispatcher() {
-	for (std::map<int, UniquePtr<IFDTask> >::iterator it = activeHandlers.begin(); it != activeHandlers.end(); it++) {
+	for (std::map<int, SharedPtr<IFDTask> >::iterator it = activeHandlers.begin(); it != activeHandlers.end(); it++) {
 		tryUnregisterDescriptor(it->first);
 		close(it->first);
 	}
@@ -43,9 +47,13 @@ FDTaskDispatcher::~FDTaskDispatcher() {
 #endif
 }
 
-void FDTaskDispatcher::registerTask(IFDTask* task) {
+void FDTaskDispatcher::registerTask(SharedPtr<IFDTask> task) {
 	insertionQueue.push_back(task);
 	registerDescriptor(task->getDescriptor());
+	Option<SharedPtr<IProcessTask> > maybeProcessTask = task.tryAs<IProcessTask>();
+	if (maybeProcessTask.isSome()) {
+		processTasks[maybeProcessTask.get()->getPID()] = maybeProcessTask.get();
+	}
 }
 
 bool FDTaskDispatcher::tryUnregisterDescriptor(int fd) {
@@ -121,10 +129,29 @@ void FDTaskDispatcher::tryCloseDescriptor(int fd) {
 	}
 }
 
+Option<Webserv::Error> FDTaskDispatcher::updateProcessTasks() {
+	for (std::vector< SharedPtr<IProcessTask> >::iterator it = makedForRemovalPTasks.begin(); it != makedForRemovalPTasks.end(); it++) {
+		(*it)->onProcessExit(*this);
+		processTasks.erase((*it)->getPID());
+	}
+	makedForRemovalPTasks = std::vector<SharedPtr<IProcessTask> >();
+	
+	int wstatus;
+	for (std::map<int, SharedPtr<IProcessTask> >::iterator it = processTasks.begin(); it != processTasks.end(); it++) {
+		int waitResult = waitpid(it->first, &wstatus, WNOHANG);
+		if (waitResult < 0) return Error(Error::GENERIC_ERROR, "waitpid error");
+		if (WIFEXITED(wstatus)) {
+			std::cout << "Process " << it->first << " has stopeed, cooking it rn" << std::endl;
+			makedForRemovalPTasks.push_back(it->second);
+		}
+	}
+	return NONE;
+}
+
 Option<Webserv::Error> FDTaskDispatcher::update() {
 	// Refresh storage
-	std::vector<UniquePtr<IFDTask> > newInserted;
-	for (std::vector<UniquePtr<IFDTask> >::iterator it = insertionQueue.begin(); it != insertionQueue.end(); it++) {
+	std::vector<SharedPtr<IFDTask> > newInserted;
+	for (std::vector<SharedPtr<IFDTask> >::iterator it = insertionQueue.begin(); it != insertionQueue.end(); it++) {
 		if (!tryRegisterDescriptor((*it)->getDescriptor(), (*it)->getIOMode())) {
 			newInserted.push_back(*it);
 		}
@@ -135,7 +162,7 @@ Option<Webserv::Error> FDTaskDispatcher::update() {
 	insertionQueue = newInserted;
 	
 	// Handle events with available descriptors
-	std::vector<UniquePtr<IFDTask> > freedHandlers;
+	std::vector<SharedPtr<IFDTask> > freedHandlers;
 	std::vector<int> activeFds;
 #ifdef LINUX
 	struct epoll_event events[EPOLL_EVENT_COUNT];
@@ -168,8 +195,9 @@ Option<Webserv::Error> FDTaskDispatcher::update() {
 			freedHandlers.push_back(activeHandlers[activeFd]);
 		}
 	}
+
 	// Remove completed events
-	for (std::vector<UniquePtr<IFDTask> >::iterator it = freedHandlers.begin(); it != freedHandlers.end(); it++) {
+	for (std::vector<SharedPtr<IFDTask> >::iterator it = freedHandlers.begin(); it != freedHandlers.end(); it++) {
 		if (!tryUnregisterDescriptor((*it)->getDescriptor())) {
 			return Error(Error::GENERIC_ERROR, "Attempt to close non-existent descriptor");
 		}
@@ -177,5 +205,25 @@ Option<Webserv::Error> FDTaskDispatcher::update() {
 		tryCloseDescriptor((*it)->getDescriptor());
 	}
 
-	return NONE;
+	return updateProcessTasks();
+}
+
+void FDTaskDispatcher::removeByFd(int fd) {
+	tryUnregisterDescriptor(fd);
+	std::vector<SharedPtr<IFDTask> > newInserted;
+	for (std::vector<SharedPtr<IFDTask> >::iterator it = insertionQueue.begin(); it != insertionQueue.end(); it++) {
+		if ((*it)->getDescriptor() != fd) {
+			newInserted.push_back(*it);
+		}
+		else {
+			tryCloseDescriptor(fd);
+		}
+	}
+	insertionQueue = newInserted;
+
+	if (activeHandlers.find(fd) != activeHandlers.end()) {
+		std::cout << "Removing " << fd << " from active handlers" << std::endl;
+		activeHandlers.erase(fd);
+		tryCloseDescriptor(fd);
+	}	
 }

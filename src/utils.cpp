@@ -92,3 +92,18 @@ Option<uint> Webserv::hexStrToUInt(const std::string& str) {
 	}
 	return result;
 }
+
+Option<std::string> Webserv::getFileExtension(const std::string& fileName) {
+	std::string trimmedFilename = trimString(fileName, '.');
+	if (trimmedFilename.find(".") == std::string::npos) {
+		return NONE;
+	}
+
+	std::stringstream stream(trimmedFilename);
+	std::string line;
+	std::string extension;
+	while (getline(stream, line, '.')) {
+		extension = line;
+	};
+	return extension;
+}

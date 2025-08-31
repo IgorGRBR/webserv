@@ -13,7 +13,7 @@ namespace Webserv {
 	// This task is constantly alive and active.
 	class ClientListener: public IFDTask {
 	public:
-		static Result<ClientListener*, Error> tryMake(Config&, Config::Server&);
+		static Result<ClientListener*, Error> tryMake(Config&, Config::Server&, char* envp[]);
 		Result<bool, Error> runTask(FDTaskDispatcher&);
 		int getDescriptor() const;
 		IOMode getIOMode() const;
@@ -87,23 +87,51 @@ namespace Webserv {
 		HTTPContentType contentType;
 	};
 
-	class CGIReader: public IFDTask {
+	class CGIWriter: public IFDTask, public IFDConsumer {
 	public:
+		// static Result<UniquePtr<CGIWriter>, Error> tryMake(int fd);
+		CGIWriter(int fd);
+
 		Result<bool, Error> runTask(FDTaskDispatcher&);
 		int getDescriptor() const;
 		IOMode getIOMode() const;
+		void consumeFileData(const std::string &);
+		void close();
+
 	private:
+		int fd;
+		bool closed;
+		std::vector<std::string> writeBuffer;
 	};
 
-	class CGIWriter: public IFDTask {
+	class CGIReader: public IFDTask, public IProcessTask {
 	public:
+		// static Result<UniquePtr<CGIReader>, Error> tryMake(int fd, uint bufSize);
+		CGIReader(int pid, int fd, uint rSize = MSG_BUF_SIZE);
+
 		Result<bool, Error> runTask(FDTaskDispatcher&);
 		int getDescriptor() const;
 		IOMode getIOMode() const;
+		std::string readAll();
+		void setWriter(const SharedPtr<CGIWriter> wPtr);
+		Option<SharedPtr<CGIWriter> > getWriter();
+		void onProcessExit(FDTaskDispatcher&);
+		int getPID() const;
 	private:
+		int fd;
+		int pid;
+		uint readSize;
+		std::vector<std::string> readBuffer;
+		Option<SharedPtr<CGIWriter> > writer;
 	};
 
-	Result<std::pair<CGIWriter, CGIReader>, Error> makeCGIPipeline(const std::map<std::string, std::string>&);
+	typedef std::pair<SharedPtr<CGIWriter>, SharedPtr<CGIReader> > CGIPipeline;
+	Result<CGIPipeline, Error> makeCGIPipeline(
+		const Url& binaryLocation,
+		const Url& scriptLocation,
+		const Url& extraPath,
+		char** envp
+	);
 }
 
 #endif
