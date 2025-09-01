@@ -59,19 +59,14 @@ namespace Webserv {
 			// TODO: handle file uploading here
 			// 1) Get the uploaded file from the request
 			std::string requestData = request.getData();
-			std::cout << "(DEBUG) Received file data:\n" << requestData << std::endl; //This is an example of the received file data: ------WebKitFormBoundaryG8fEUJTawKXLd6iV
-			//Content-Disposition: form-data; name="file"; filename="cool.txt"
-			//Content-Type: text/plain
-
-			//this is a cool file
-			//------WebKitFormBoundaryG8fEUJTawKXLd6iV--
+			// std::cout << "(DEBUG) Received file data:\n" << requestData << std::endl;
 
 			// 2) Validate the uploaded file
 			Option<std::string> requestHeader = request.getHeader("Content-Type");
 			if (requestHeader.isNone()) {
 				return Error(Error::HTTP_ERROR, "Missing Content-Type header"); //TODO: Maybe it needs a more specific error?
 			}
-			std::cout << "(DEBUG) Received Content-Type header:\n" << requestHeader.get() << std::endl; //This is an example of the content-type header: multipart/form-data; boundary=----WebKitFormBoundaryG8fEUJTawKXLd6iV
+			// std::cout << "(DEBUG) Received Content-Type header:\n" << requestHeader.get() << std::endl;
 
 			// 3) Parse the request body; retrieve the content type from the header
 			std::string contentTypeHeader = requestHeader.get();
@@ -97,7 +92,7 @@ namespace Webserv {
 				return Error(Error::HTTP_ERROR, "Malformed headers in request data"); //TODO: Maybe it needs a more specific error?
 			}
 			std::string headers = requestData.substr(partStart, headersEndPos - partStart);
-			std::cout << "(DEBUG) Headers: " << headers << std::endl;
+			// std::cout << "(DEBUG) Headers: " << headers << std::endl;
 
 			std::string filename;
 			std::size_t contentDispPos = headers.find("Content-Disposition:");
@@ -126,21 +121,19 @@ namespace Webserv {
 			std::size_t fileEnd = requestData.find(closingBoundary, fileStart);
 			std::cout << closingBoundary << std::endl;
 			if (fileEnd == std::string::npos) {
-				// if (fileEnd == std::string::npos) {
-				// 	return Error(Error::HTTP_ERROR, "Failed to find file end boundary"); //TODO: Maybe it needs a more specific error?
 				std::string altClosingBoundary = "\r\n" + closingBoundary;
 				fileEnd = requestData.find(altClosingBoundary, fileStart);
 				if (fileEnd != std::string::npos) {
 					closingBoundary = altClosingBoundary;
 				}
-				std::cout << "(DEBUG) Found closing boundary: " << fileEnd << std::endl;
+				// std::cout << "(DEBUG) Found closing boundary: " << fileEnd << std::endl;
 			}
 			std::string fileContent = requestData.substr(fileStart, fileEnd - fileStart);
 			fileContent = fileContent.substr(0, fileContent.length() - closingBoundary.length() - 2);
 
-			std::cout << "(DEBUG) Retrieved content type:\n" << contentType << std::endl;
+			// std::cout << "(DEBUG) Retrieved content type:\n" << contentType << std::endl;
 			if (contentType == "multipart/form-data; ") {
-				// 4) Store the uploaded file in exampleSite/upload: exampleSite/upload
+				// 4) Store the uploaded file in exampleSite/upload
 				// 4.1) Create the file in the upload directory
 				std::string filePath = "exampleSite/upload/" + filename;
 				std::ofstream uploadFile(filePath.c_str());
