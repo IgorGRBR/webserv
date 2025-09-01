@@ -1,7 +1,7 @@
 # This is a simple config file example
 
 server (
-	listen 8064
+	listen 8082
 	maxRequestSize 1024
 	location /awesome (
 		root ./exampleSite/
@@ -30,6 +30,10 @@ server (
 	location /awesome/download (
 		root ./exampleSite/upload/
 		allowMethod GET
+	)
+
+	location /awesome/redirect (
+		redirect http://www.google.com
 	)
 )
 

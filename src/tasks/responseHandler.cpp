@@ -5,9 +5,11 @@
 #include "http.hpp"
 #include "url.hpp"
 #include "ystl.hpp"
-#include <cstring>
+#include <cstring>	
 #include <unistd.h>
 #include "tasks.hpp"
+#include <string>
+
 
 typedef Webserv::Error Error;
 typedef Webserv::Config::Server::Location Location;
@@ -21,6 +23,10 @@ ResponseHandler::ResponseHandler(ServerData& sd, ConnectionInfo& ci):
 	contentType(BYTE_STREAM)
 {}
 
+void ResponseHandler::setResponseHeader(const std::string& key, const std::string& value) {
+    extraHeaders[key] = value;
+}
+
 Result<ResponseHandler*, Error> ResponseHandler::tryMake(ServerData& sd, ConnectionInfo& ci) {
 	return new ResponseHandler(sd, ci);
 }
@@ -32,6 +38,7 @@ Result<ResponseHandler*, Error> ResponseHandler::tryMakeErrorPage(ServerData & s
 	response->setResponseData(respContent);
 	response->setResponseCode(error.getHTTPCode());
 	response->setResponseContentType(HTML);
+
 	return response;
 }
 
@@ -42,6 +49,10 @@ Result<bool, Error> ResponseHandler::runTask(FDTaskDispatcher&) {
 	response.setContentType(contentTypeString(contentType));
 	std::string responseStr = response.build();
 
+for (std::map<std::string, std::string>::iterator it = extraHeaders.begin(); it != extraHeaders.end(); ++it) {
+    response.setHeader(it->first, it->second);
+}
+	
 	// Now respond!
 	write(conn.connectionFd, responseStr.c_str(), responseStr.length());
 	return false;
