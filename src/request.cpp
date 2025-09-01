@@ -4,6 +4,9 @@
 #include "http.hpp"
 #include "tasks.hpp"
 #include "webserv.hpp"
+#include <cstddef>
+#include <istream>
+#include <iostream> //added for file uploading
 
 typedef Result<Webserv::IFDTask*, Webserv::Error> TaskResult;
 typedef Webserv::Config::Server::Location Location;
@@ -54,7 +57,7 @@ namespace Webserv {
 		&& request.getMethod() == POST
 		&& location.fileUploadFieldId.isSome()) {
 			// TODO: handle file uploading here
-			// 1) Get the uploaded file from the request (Note: seems to work for .txt and .html but not for .jpeg?)
+			// 1) Get the uploaded file from the request
 			std::string requestData = request.getData();
 			std::cout << "(DEBUG) Received file data:\n" << requestData << std::endl; //This is an example of the received file data: ------WebKitFormBoundaryG8fEUJTawKXLd6iV
 			//Content-Disposition: form-data; name="file"; filename="cool.txt"
@@ -65,11 +68,41 @@ namespace Webserv {
 			// 2) Validate the uploaded file
 			Option<std::string> requestHeader = request.getHeader("Content-Type");
 			if (requestHeader.isNone()) {
-				return Error(Error::HTTP_ERROR, "Missing Content-Type header"); //Maybe it needs a more specific error?
+				return Error(Error::HTTP_ERROR, "Missing Content-Type header"); //TODO: Maybe it needs a more specific error?
+			}
+			std::string firstLine = requestData.substr(requestData.find(";", 0), requestData.find("\r\n"));
+			std::cout << "(DEBUG) First line: " << firstLine << std::endl;
+			std::string filename;
+			if (firstLine.find("filename=\"") != std::string::npos) {
+				filename = firstLine.substr(firstLine.find("filename=\"", 10), firstLine.npos);
+			}
+			else {
+				return Error(Error::HTTP_ERROR, "Filename not found."); //TODO: Maybe it needs a more specific error?
 			}
 			std::cout << "(DEBUG) Received Content-Type header:\n" << requestHeader.get() << std::endl; //This is an example of the content-type header: multipart/form-data; boundary=----WebKitFormBoundaryG8fEUJTawKXLd6iV
-			// 3) Parse the request body
-			// 4) Store the uploaded file in exampleSite/upload
+			// 3) Parse the request body; retrieve the content type from the header
+			std::string contentTypeHeader = requestHeader.get();
+			std::string boundaryPrefix = "boundary="; //Retrieve the boundary
+			std::size_t boundaryPos = contentTypeHeader.find(boundaryPrefix);
+			if (boundaryPos == std::string::npos) {
+				return Error(Error::HTTP_ERROR, "Missing boundary in Content-Type header"); //TODO: Maybe it needs a more specific error?
+			}
+			std::string contentType = contentTypeHeader.substr(0, boundaryPos);
+			std::cout << "(DEBUG) Retrieved content type:\n" << contentType << std::endl;
+			if (contentType == "multipart/form-data; ") {
+				// 4) Store the uploaded file in exampleSite/upload: exampleSite/upload
+				// 4.1) Create the file in the upload directory
+				std::string filePath = "exampleSite/upload/" + filename;
+				std::ofstream uploadFile(filePath.c_str());
+				if (!uploadFile.is_open()) {
+					return Error(Error::HTTP_ERROR, "Failed to create upload file");
+				}
+				// 4.2) Write the file content
+				uploadFile << requestData.substr(requestData.find("\r\n\r\n") + 4);
+				// 4.3) Close the file
+				uploadFile.close();
+				// 5) Send a response to the client (This is managed elsewhere)
+			}
 			// return Error(Error::GENERIC_ERROR, "Not implemented (REMOVE ME)");
 		}
 
