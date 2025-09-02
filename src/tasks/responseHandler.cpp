@@ -43,20 +43,33 @@ Result<ResponseHandler*, Error> ResponseHandler::tryMakeErrorPage(ServerData & s
 }
 
 Result<bool, Error> ResponseHandler::runTask(FDTaskDispatcher&) {
-	if (!ready) return true;
-	HTTPResponse response(Url(), responseCode);
-	response.setData(responseData);
-	response.setContentType(contentTypeString(contentType));
-	std::string responseStr = response.build();
+    if (!ready) return true;
 
-for (std::map<std::string, std::string>::iterator it = extraHeaders.begin(); it != extraHeaders.end(); ++it) {
-    response.setHeader(it->first, it->second);
+    HTTPResponse response(Url(), responseCode);
+    response.setData(responseData);
+    response.setContentType(contentTypeString(contentType));
+
+    // Add all extra headers before building the response string
+    for (std::map<std::string, std::string>::iterator it = extraHeaders.begin(); it != extraHeaders.end(); ++it) {
+        response.setHeader(it->first, it->second);
+    }
+
+    std::string responseStr = response.build();
+
+    // Write response to client socket with error checking
+    ssize_t written = write(conn.connectionFd, responseStr.c_str(), responseStr.length());
+    if (written == -1) {
+        perror("Write to socket failed");
+        // Log or handle the error (optional)
+    } else if (written < (ssize_t)responseStr.length()) {
+        std::cerr << "Partial write to socket: " << written << " bytes written out of " << responseStr.length() << std::endl;
+        // Handle partial write if necessary (not common for sockets)
+    }
+
+    return false;
 }
-	
-	// Now respond!
-	write(conn.connectionFd, responseStr.c_str(), responseStr.length());
-	return false;
-}
+
+
 
 int ResponseHandler::getDescriptor() const {
 	return conn.connectionFd;

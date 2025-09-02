@@ -4,7 +4,6 @@
 #include "http.hpp"
 #include "tasks.hpp"
 #include "webserv.hpp"
-#include <sstream>
 
 
 typedef Result<Webserv::IFDTask*, Webserv::Error> TaskResult;
