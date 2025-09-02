@@ -46,7 +46,7 @@ Webserv::IOMode RequestHandler::getIOMode() const {
 Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 	char buffer[MSG_BUF_SIZE + 1] = {0};
 	long readResult = read(clientSocketFd, (void*)buffer, MSG_BUF_SIZE);
-	std::string bufStr = std::string(buffer);
+	std::string bufStr = std::string(buffer, readResult);
 	(void)readResult;
 #ifdef DEBUG
 	// std::cout << "Read result: " << readResult << "\nContent:\n" << bufStr << std::endl;

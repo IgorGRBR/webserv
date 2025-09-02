@@ -23,6 +23,7 @@ server (
 		return 200
 		dirListing
 		allowMethod POST
+		allowMethod GET #This is apparently needed to avoid the "HTTP method is not allowed" error
 		maxRequestSize 100000000
 		fileUpload file
 	)
