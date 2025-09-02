@@ -7,6 +7,7 @@
 #include <string>
 #include <unistd.h>
 #include <utility>
+#include <sys/wait.h>
 
 namespace Webserv {
 	CGIReader::CGIReader(int pid, int fd, uint rSize): fd(fd), pid(pid), readSize(rSize), writer(NONE) {}
@@ -26,6 +27,23 @@ namespace Webserv {
 		std::cout << "Got this from CGI: " << bufStr << std::endl;
 #endif
 		readBuffer.push_back(bufStr);
+
+		if (readResult == 0) {
+			std::cout << "CGIReader is done" << std::endl;
+			if (writer.isSome()) {
+				writer.get()->close();
+			}
+			return false;
+		}
+
+		// int wstatus;
+		// int waitResult = waitpid(pid, &wstatus, WNOHANG);
+		// if (waitResult < 0) return Error(Error::GENERIC_ERROR, "waitpid error");
+		// if (WIFEXITED(wstatus)) {
+		// 	std::cout << "Process " << pid << " has stopeed, cooking it rn" << std::endl;
+		// 	onProcessExit(dispatcher);
+		// 	return false;
+		// }
 		return true;
 	}
 
@@ -41,22 +59,23 @@ namespace Webserv {
 		return writer;
 	}
 
-	void CGIReader::onProcessExit(FDTaskDispatcher& dispatcher) {
-		if (writer.isSome()) {
-			writer.get()->close();
-			dispatcher.removeByFd(writer.get()->getDescriptor());
-#ifdef DEBUG
-		std::cout << "CGIReader signing off..." << std::endl;
-#endif
-		}
-		dispatcher.removeByFd(getDescriptor());
-	}
+// 	void CGIReader::onProcessExit(FDTaskDispatcher& dispatcher) {
+// 		if (writer.isSome()) {
+// 			writer.get()->close();
+// 			// dispatcher.removeByFd(writer.get()->getDescriptor());
+// 			(void)dispatcher;
+// #ifdef DEBUG
+// 		std::cout << "CGIReader signing off..." << std::endl;
+// #endif
+// 		}
+// 		// dispatcher.removeByFd(getDescriptor());
+// 	}
 
-	int CGIReader::getPID() const {
-		return pid;
-	}
+// 	int CGIReader::getPID() const {
+// 		return pid;
+// 	}
 
-	CGIWriter::CGIWriter(int fd): fd(fd), closed(false) {
+	CGIWriter::CGIWriter(int fd, bool cont): fd(fd), continuous(cont), closed(false) {
 		std::cout << "CGIWriter: " << fd << std::endl;
 	}
 
@@ -72,7 +91,7 @@ namespace Webserv {
 		std::string str = bufStream.str();
 		int writeError = write(fd, str.c_str(), str.size());
 		if (writeError == -1) return Error(Error::GENERIC_ERROR, "CGIWriter fail");
-		return true;
+		return continuous;
 	}
 
 	int CGIWriter::getDescriptor() const {
@@ -137,6 +156,13 @@ namespace Webserv {
 			dup2(writePipe[0], STDIN_FILENO);
 			dup2(readPipe[1], STDOUT_FILENO);
 
+			close(writePipe[1]);
+			close(readPipe[0]);
+
+			// Wha... why???? (source: https://stackoverflow.com/questions/7369286/c-passing-a-pipe-thru-execve)
+			close(writePipe[0]);
+			close(readPipe[1]);
+
 			char* args[3];// = new char[2]();
 			args[0] = new char[1]();
 			args[1] = new char[scriptName.size() + 1]();
@@ -176,6 +202,9 @@ namespace Webserv {
 			exit(1);
 		}
 		
+		close(writePipe[0]);
+		close(readPipe[1]);
+
 		SharedPtr<CGIWriter> writer = new CGIWriter(writePipe[1]);
 		SharedPtr<CGIReader> reader = new CGIReader(forkResult, readPipe[0], MSG_BUF_SIZE);
 		reader->setWriter(writer);

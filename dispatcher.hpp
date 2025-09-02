@@ -65,13 +65,13 @@ namespace Webserv {
 		virtual void consumeFileData(const std::string &) = 0;
 	};
 
-	class IProcessTask {
-	public:
-		virtual ~IProcessTask();
+	// class IProcessTask {
+	// public:
+	// 	virtual ~IProcessTask();
 
-		virtual void onProcessExit(FDTaskDispatcher&) = 0;
-		virtual int getPID() const = 0;
-	};
+	// 	virtual void onProcessExit(FDTaskDispatcher&) = 0;
+	// 	virtual int getPID() const = 0;
+	// };
 
 	// `FDTaskDispatcher` is responsible for maintaining a queue of pending tasks, maintaining a list of currently active tasks
 	// and updating their states. It also manages the state of `epoll` instance.
@@ -109,14 +109,14 @@ namespace Webserv {
 		void registerDescriptor(int);
 		void tryCloseDescriptor(int);
 
-		Option<Error> updateProcessTasks();
+		// Option<Error> updateProcessTasks();
 
 		std::map<int, SharedPtr<IFDTask> > activeHandlers;
 		std::vector<SharedPtr<IFDTask> > insertionQueue;
 		std::set<int> activeDescriptors;
 		std::map<int, uint> aliveDescriptors;
-		std::map<int, SharedPtr<IProcessTask> > processTasks;
-		std::vector<SharedPtr<IProcessTask> > makedForRemovalPTasks;
+		// std::map<int, SharedPtr<IProcessTask> > processTasks;
+		// std::vector<SharedPtr<IProcessTask> > makedForRemovalPTasks;
 #ifdef OSX
 		int kqueueFd;
 #endif

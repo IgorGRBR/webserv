@@ -74,7 +74,7 @@ namespace Webserv {
 		// }
 		// else {
 		// }
-		cgiStdinData = request.getData();
+		cgiStdinData = request.toString();
 
 		CGIPipeline& pipeline = maybePipeline.getValue();
 		pipeline.first->consumeFileData(cgiStdinData);

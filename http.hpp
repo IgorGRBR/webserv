@@ -76,6 +76,8 @@ namespace Webserv {
 		Option<std::string> getHeader(const std::string&) const;
 
 		bool isForm() const;
+
+		std::string toString() const;
 	private:
 		// It's here so you can't construct an empty HTTPRequest.
 		void setData(const std::string&);

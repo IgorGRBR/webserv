@@ -174,6 +174,20 @@ Option<std::string> Webserv::HTTPRequest::getHeader(const std::string& key) cons
 	return NONE;
 }
 
+std::string Webserv::HTTPRequest::toString() const {
+	std::stringstream result;
+
+	result << httpMethodName(method) << " " << path.toString() << " HTTP/1.1" << std::endl;
+	
+	for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); it++) {
+		result << it->first << ": " << it->second << std::endl;
+	}
+
+	result << std::endl << data;
+
+	return result.str();
+}
+
 HTTPResponse::HTTPResponse(Webserv::Url uri, ReturnCode retCode): resourcePath(uri), retCode(retCode), headers() {
 	headers["Content-Type"] = "text/html";
 }

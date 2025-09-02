@@ -90,7 +90,7 @@ namespace Webserv {
 	class CGIWriter: public IFDTask, public IFDConsumer {
 	public:
 		// static Result<UniquePtr<CGIWriter>, Error> tryMake(int fd);
-		CGIWriter(int fd);
+		CGIWriter(int fd, bool cont = false);
 
 		Result<bool, Error> runTask(FDTaskDispatcher&);
 		int getDescriptor() const;
@@ -100,11 +100,12 @@ namespace Webserv {
 
 	private:
 		int fd;
+		bool continuous;
 		bool closed;
 		std::vector<std::string> writeBuffer;
 	};
 
-	class CGIReader: public IFDTask, public IProcessTask {
+	class CGIReader: public IFDTask {
 	public:
 		// static Result<UniquePtr<CGIReader>, Error> tryMake(int fd, uint bufSize);
 		CGIReader(int pid, int fd, uint rSize = MSG_BUF_SIZE);
@@ -115,8 +116,8 @@ namespace Webserv {
 		std::string readAll();
 		void setWriter(const SharedPtr<CGIWriter> wPtr);
 		Option<SharedPtr<CGIWriter> > getWriter();
-		void onProcessExit(FDTaskDispatcher&);
-		int getPID() const;
+		// void onProcessExit(FDTaskDispatcher&);
+		// int getPID() const;
 	private:
 		int fd;
 		int pid;

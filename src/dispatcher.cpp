@@ -1,6 +1,7 @@
 #include "dispatcher.hpp"
 #include "error.hpp"
 #include "ystl.hpp"
+#include <cerrno>
 #include <cstdlib>
 #include <string>
 #ifdef OSX
@@ -23,7 +24,7 @@ IFDTask::~IFDTask() {}
 
 IFDConsumer::~IFDConsumer() {}
 
-Webserv::IProcessTask::~IProcessTask() {};
+// Webserv::IProcessTask::~IProcessTask() {};
 
 FDTaskDispatcher::FDTaskDispatcher() {
 #ifdef LINUX
@@ -50,14 +51,15 @@ FDTaskDispatcher::~FDTaskDispatcher() {
 void FDTaskDispatcher::registerTask(SharedPtr<IFDTask> task) {
 	insertionQueue.push_back(task);
 	registerDescriptor(task->getDescriptor());
-	Option<SharedPtr<IProcessTask> > maybeProcessTask = task.tryAs<IProcessTask>();
-	if (maybeProcessTask.isSome()) {
-		processTasks[maybeProcessTask.get()->getPID()] = maybeProcessTask.get();
-	}
+	// Option<SharedPtr<IProcessTask> > maybeProcessTask = task.tryAs<IProcessTask>();
+	// if (maybeProcessTask.isSome()) {
+	// 	processTasks[maybeProcessTask.get()->getPID()] = maybeProcessTask.get();
+	// }
 }
 
 bool FDTaskDispatcher::tryUnregisterDescriptor(int fd) {
 	if (activeDescriptors.find(fd) != activeDescriptors.end()) {
+		std::cout << "Unregistering " << fd << std::endl;
 #ifdef LINUX
 		epoll_ctl(epollFd, EPOLL_CTL_DEL, fd, NULL);
 #endif
@@ -129,26 +131,35 @@ void FDTaskDispatcher::tryCloseDescriptor(int fd) {
 	}
 }
 
-Option<Webserv::Error> FDTaskDispatcher::updateProcessTasks() {
-	for (std::vector< SharedPtr<IProcessTask> >::iterator it = makedForRemovalPTasks.begin(); it != makedForRemovalPTasks.end(); it++) {
-		(*it)->onProcessExit(*this);
-		processTasks.erase((*it)->getPID());
-	}
-	makedForRemovalPTasks = std::vector<SharedPtr<IProcessTask> >();
+// Option<Webserv::Error> FDTaskDispatcher::updateProcessTasks() {
+// 	std::cout << "Updating process tasks" << std::endl;
+// 	for (std::vector< SharedPtr<IProcessTask> >::iterator it = makedForRemovalPTasks.begin(); it != makedForRemovalPTasks.end(); it++) {
+// 		(*it)->onProcessExit(*this);
+// 		std::cout << "Removing process " << (*it)->getPID() << std::endl;
+// 		processTasks.erase((*it)->getPID());
+// 	}
+// 	makedForRemovalPTasks = std::vector<SharedPtr<IProcessTask> >();
 	
-	int wstatus;
-	for (std::map<int, SharedPtr<IProcessTask> >::iterator it = processTasks.begin(); it != processTasks.end(); it++) {
-		int waitResult = waitpid(it->first, &wstatus, WNOHANG);
-		if (waitResult < 0) return Error(Error::GENERIC_ERROR, "waitpid error");
-		if (WIFEXITED(wstatus)) {
-			std::cout << "Process " << it->first << " has stopeed, cooking it rn" << std::endl;
-			makedForRemovalPTasks.push_back(it->second);
-		}
-	}
-	return NONE;
-}
+// 	int wstatus;
+// 	for (std::map<int, SharedPtr<IProcessTask> >::iterator it = processTasks.begin(); it != processTasks.end(); it++) {
+// 		int waitResult = waitpid(it->first, &wstatus, WNOHANG);
+// 		if (waitResult < 0)
+// 			return Error(Error::GENERIC_ERROR, "waitpid error");
+// 		if (WIFEXITED(wstatus)) {
+// 			std::cout << "Process " << it->first << " has stopeed, cooking it rn" << std::endl;
+// 			makedForRemovalPTasks.push_back(it->second);
+// 		}
+// 	}
+// 	return NONE;
+// }
 
 Option<Webserv::Error> FDTaskDispatcher::update() {
+	std::cout << "Task dispatcher update" << std::endl;
+	// std::cout << "Pre-refresh active handlers:" << std::endl;
+	// for (std::map<int, SharedPtr<IFDTask> >::iterator it = activeHandlers.begin(); it != activeHandlers.end(); it++) {
+	// 	std::cout << " " << it->first << std::endl;
+	// }
+
 	// Refresh storage
 	std::vector<SharedPtr<IFDTask> > newInserted;
 	for (std::vector<SharedPtr<IFDTask> >::iterator it = insertionQueue.begin(); it != insertionQueue.end(); it++) {
@@ -160,6 +171,11 @@ Option<Webserv::Error> FDTaskDispatcher::update() {
 		}
 	}
 	insertionQueue = newInserted;
+
+	// std::cout << "Active handlers:" << std::endl;
+	// for (std::map<int, SharedPtr<IFDTask> >::iterator it = activeHandlers.begin(); it != activeHandlers.end(); it++) {
+	// 	std::cout << " " << it->first << std::endl;
+	// }
 	
 	// Handle events with available descriptors
 	std::vector<SharedPtr<IFDTask> > freedHandlers;
@@ -168,6 +184,7 @@ Option<Webserv::Error> FDTaskDispatcher::update() {
 	struct epoll_event events[EPOLL_EVENT_COUNT];
 	int fdNum = epoll_wait(epollFd, events, EPOLL_EVENT_COUNT, -1);
 	if (fdNum == -1) {
+		std::cout << strerror(errno) << std::endl;
 		return Error(Error::GENERIC_ERROR, "epoll_wait pooped itself");
 	}
 
@@ -187,6 +204,7 @@ Option<Webserv::Error> FDTaskDispatcher::update() {
 
 	for (uint i = 0; i < activeFds.size(); i++) {
 		int activeFd = activeFds[i];
+		// std::cout << "Updating task on fd: " << activeFd << std::endl;
 		Result<bool, Error> res = activeHandlers[activeFd]->runTask(*this);
 		if (res.isError()) {
 			return res.getError();
@@ -205,7 +223,8 @@ Option<Webserv::Error> FDTaskDispatcher::update() {
 		tryCloseDescriptor((*it)->getDescriptor());
 	}
 
-	return updateProcessTasks();
+	// return updateProcessTasks();
+	return NONE;
 }
 
 void FDTaskDispatcher::removeByFd(int fd) {
