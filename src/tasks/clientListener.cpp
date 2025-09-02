@@ -54,7 +54,7 @@ Result<ClientListener*, Error> ClientListener::tryMake(Config& config, Config::S
 	sData.address.sin_family = AF_INET;
 	sData.address.sin_addr.s_addr = INADDR_ANY;
 	sData.address.sin_port = htons(port);
-    std::memset(sData.address.sin_zero, '\0', sizeof(sData.address.sin_zero));
+	std::memset(sData.address.sin_zero, '\0', sizeof(sData.address.sin_zero));
 
 	if (bind(sData.socketFd, (sockaddr*)&sData.address, sData.addressLen) < 0) {
 		close(sData.socketFd);

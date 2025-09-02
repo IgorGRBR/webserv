@@ -33,11 +33,11 @@ Token::Tag Token::getTag() const {
 
 const char* Token::getTagDesc() const {
 	switch (tag) {
-        case SYMBOL:
+		case SYMBOL:
 			return "SYMBOL";
-        case OPAREN:
+		case OPAREN:
 			return "OPAREN";
-        case CPAREN:
+		case CPAREN:
 			return "CPAREN";
 	}
 	return "IDK";

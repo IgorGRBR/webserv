@@ -25,122 +25,122 @@ namespace Webserv {
 	}
 
 	TaskResult handleLocation(
-    const Url& path,
-    const Config::Server::Location& location,
-    HTTPRequest& request,
-    ServerData& sData,
-    int clientSocketFd
+	const Url& path,
+	const Config::Server::Location& location,
+	HTTPRequest& request,
+	ServerData& sData,
+	int clientSocketFd
 ) {
-    // Early return if redirection is configured
-    if (location.redirection.isSome()) {
-        std::string redirectUrl = location.redirection.get();
+	// Early return if redirection is configured
+	if (location.redirection.isSome()) {
+		std::string redirectUrl = location.redirection.get();
 
-        ConnectionInfo conn;
-        conn.connectionFd = clientSocketFd;
+		ConnectionInfo conn;
+		conn.connectionFd = clientSocketFd;
 
-        Result<ResponseHandler*, Error> response = ResponseHandler::tryMake(sData, conn);
-        if (response.isError()) {
-            std::cout << "ERROR: Failed to create ResponseHandler!" << std::endl;
-            return response.getError();
-        }
+		Result<ResponseHandler*, Error> response = ResponseHandler::tryMake(sData, conn);
+		if (response.isError()) {
+			std::cout << "ERROR: Failed to create ResponseHandler!" << std::endl;
+			return response.getError();
+		}
 
-        std::string respBody = "";
+		std::string respBody = "";
 
-        response.getValue()->setResponseCode(Webserv::HTTP_MOVED_PERMANENTLY);
-        response.getValue()->setResponseHeader("Location", redirectUrl);
+		response.getValue()->setResponseCode(Webserv::HTTP_MOVED_PERMANENTLY);
+		response.getValue()->setResponseHeader("Location", redirectUrl);
 		response.getValue()->setResponseHeader("Cache-Control", "no cache");
-        response.getValue()->setResponseData(respBody);
+		response.getValue()->setResponseData(respBody);
 
-        return response.getValue();
-    }
+		return response.getValue();
+	}
 
-    std::string root;
+	std::string root;
 
-    // Existing root location checks
-    if (location.root.isSome()) {
-        root = location.root.get();
-    }
-    else if (sData.config.defaultRoot.isSome()) {
-        root = sData.config.defaultRoot.get();
-    }
-    else {
-        return Error(Error::HTTP_ERROR, "Missing root location in configuration");
-    }
+	// Existing root location checks
+	if (location.root.isSome()) {
+		root = location.root.get();
+	}
+	else if (sData.config.defaultRoot.isSome()) {
+		root = sData.config.defaultRoot.get();
+	}
+	else {
+		return Error(Error::HTTP_ERROR, "Missing root location in configuration");
+	}
 
-    ConnectionInfo conn;
-    conn.connectionFd = clientSocketFd;
+	ConnectionInfo conn;
+	conn.connectionFd = clientSocketFd;
 
-    Option<std::string> fileContent = NONE;
-    Url rootUrl = Url::fromString(root).get();
-    Url tail = request.getPath().tailDiff(path);
+	Option<std::string> fileContent = NONE;
+	Url rootUrl = Url::fromString(root).get();
+	Url tail = request.getPath().tailDiff(path);
 
-    if (tail.getSegments().empty()
-    && request.getMethod() == POST
-    && location.fileUploadFieldId.isSome()) {
-        // TODO: handle file uploading here
-        return Error(Error::GENERIC_ERROR, "Not implemented (REMOVE ME)");
-    }
+	if (tail.getSegments().empty()
+	&& request.getMethod() == POST
+	&& location.fileUploadFieldId.isSome()) {
+		// TODO: handle file uploading here
+		return Error(Error::GENERIC_ERROR, "Not implemented (REMOVE ME)");
+	}
 
-    Url respFileUrl = rootUrl + tail;
-    std::string respFilePath = respFileUrl.toString(false);
-    std::cout << "Trying to load: " << respFilePath << std::endl;
+	Url respFileUrl = rootUrl + tail;
+	std::string respFilePath = respFileUrl.toString(false);
+	std::cout << "Trying to load: " << respFilePath << std::endl;
 
-    // Check file system type and load content
-    FSType fsType = checkFSType(respFilePath);
-    HTTPContentType contentType = BYTE_STREAM;
-    switch (fsType) {
-    case FS_NONE:
-        fileContent = NONE;
-        break;
-    case FS_FILE: {
-            std::ifstream respFile(respFilePath.c_str());
-            if (respFile.is_open()) {
-                fileContent = readAll(respFile);
-                contentType = getContentType(respFileUrl);
-            }
-        }
-        break;
-    case FS_DIRECTORY:
-        std::string indexStr = location.index.getOr("index.html");
-        Url index = Url::fromString(indexStr).get();
+	// Check file system type and load content
+	FSType fsType = checkFSType(respFilePath);
+	HTTPContentType contentType = BYTE_STREAM;
+	switch (fsType) {
+	case FS_NONE:
+		fileContent = NONE;
+		break;
+	case FS_FILE: {
+			std::ifstream respFile(respFilePath.c_str());
+			if (respFile.is_open()) {
+				fileContent = readAll(respFile);
+				contentType = getContentType(respFileUrl);
+			}
+		}
+		break;
+	case FS_DIRECTORY:
+		std::string indexStr = location.index.getOr("index.html");
+		Url index = Url::fromString(indexStr).get();
 
-        std::string indexFilePath = (respFileUrl + index).toString(false);
-        std::cout << "Trying to load: " << indexFilePath << std::endl;
-        std::ifstream respFile(indexFilePath.c_str());
+		std::string indexFilePath = (respFileUrl + index).toString(false);
+		std::cout << "Trying to load: " << indexFilePath << std::endl;
+		std::ifstream respFile(indexFilePath.c_str());
 
-        if (respFile.is_open()) { // Try to load index file
-            fileContent = readAll(respFile);
-            Url indexFileUrl = respFileUrl + index;
-            contentType = getContentType(indexFileUrl);
-        }
-        else { // Try to create directory listing
-            std::string urlPath = request.getPath().toString(true);
-            fileContent = makeDirectoryListing(
-                respFilePath,
-                urlPath,
-                tail.getSegments().size() == 0,
-                location.fileUploadFieldId.isSome()
-            );
-            contentType = HTML;
-        }
-        break;
-    }
+		if (respFile.is_open()) { // Try to load index file
+			fileContent = readAll(respFile);
+			Url indexFileUrl = respFileUrl + index;
+			contentType = getContentType(indexFileUrl);
+		}
+		else { // Try to create directory listing
+			std::string urlPath = request.getPath().toString(true);
+			fileContent = makeDirectoryListing(
+				respFilePath,
+				urlPath,
+				tail.getSegments().size() == 0,
+				location.fileUploadFieldId.isSome()
+			);
+			contentType = HTML;
+		}
+		break;
+	}
 
-    if (fileContent.isSome()) {
-        Result<ResponseHandler*, Error> response = ResponseHandler::tryMake(sData, conn);
-        if (response.isError()) {
-            std::cout << "ERROR: Failed to create ResponseHandler!" << std::endl;
-            return response.getError();
-        }
-        response.getValue()->setResponseData(fileContent.get());
-        response.getValue()->setResponseContentType(contentType);
-        return response.getValue();
-    }
-    else {
-        return Error(Error::FILE_NOT_FOUND, respFilePath);
-    }
+	if (fileContent.isSome()) {
+		Result<ResponseHandler*, Error> response = ResponseHandler::tryMake(sData, conn);
+		if (response.isError()) {
+			std::cout << "ERROR: Failed to create ResponseHandler!" << std::endl;
+			return response.getError();
+		}
+		response.getValue()->setResponseData(fileContent.get());
+		response.getValue()->setResponseContentType(contentType);
+		return response.getValue();
+	}
+	else {
+		return Error(Error::FILE_NOT_FOUND, respFilePath);
+	}
 
-    return Error(Error::GENERIC_ERROR, "Not implemented");
+	return Error(Error::GENERIC_ERROR, "Not implemented");
 }
 
 

@@ -24,7 +24,7 @@ ResponseHandler::ResponseHandler(ServerData& sd, ConnectionInfo& ci):
 {}
 
 void ResponseHandler::setResponseHeader(const std::string& key, const std::string& value) {
-    extraHeaders[key] = value;
+	extraHeaders[key] = value;
 }
 
 Result<ResponseHandler*, Error> ResponseHandler::tryMake(ServerData& sd, ConnectionInfo& ci) {
@@ -43,24 +43,24 @@ Result<ResponseHandler*, Error> ResponseHandler::tryMakeErrorPage(ServerData & s
 }
 
 Result<bool, Error> ResponseHandler::runTask(FDTaskDispatcher&) {
-    if (!ready) return true;
+	if (!ready) return true;
 
-    HTTPResponse response(Url(), responseCode);
-    response.setData(responseData);
-    response.setContentType(contentTypeString(contentType));
+	HTTPResponse response(Url(), responseCode);
+	response.setData(responseData);
+	response.setContentType(contentTypeString(contentType));
 
-    // Add all extra headers before building the response string
-    for (std::map<std::string, std::string>::iterator it = extraHeaders.begin(); it != extraHeaders.end(); ++it) {
-        response.setHeader(it->first, it->second);
-    }
+	// Add all extra headers before building the response string
+	for (std::map<std::string, std::string>::iterator it = extraHeaders.begin(); it != extraHeaders.end(); ++it) {
+		response.setHeader(it->first, it->second);
+	}
 
-    std::string responseStr = response.build();
+	std::string responseStr = response.build();
 
-    // Write response to client socket with error checking
-    write(conn.connectionFd, responseStr.c_str(), responseStr.length());
+	// Write response to client socket with error checking
+	write(conn.connectionFd, responseStr.c_str(), responseStr.length());
 
 
-    return false;
+	return false;
 }
 
 
