@@ -1,7 +1,7 @@
 # This is a simple config file example
 
 server (
-	listen 8082
+	listen 8081
 	maxRequestSize 1024
 	location /awesome (
 		root ./exampleSite/

@@ -44,14 +44,12 @@ namespace Webserv {
             return response.getError();
         }
 
-        // std::string respBody = "<html><body><h1>301 Moved Permanently</h1>"
-        //                        "<p>This resource has moved to <a href=\"" + redirectUrl + "\">" + redirectUrl + "</a></p>"
-        //                        "</body></html>";
+        std::string respBody = "";
 
         response.getValue()->setResponseCode(Webserv::HTTP_MOVED_PERMANENTLY);
         response.getValue()->setResponseHeader("Location", redirectUrl);
-        //response.getValue()->setResponseContentType(Webserv::HTML);
-        // response.getValue()->setResponseData(respBody);
+		response.getValue()->setResponseHeader("Cache-Control", "no cache");
+        response.getValue()->setResponseData(respBody);
 
         return response.getValue();
     }
