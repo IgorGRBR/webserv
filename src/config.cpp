@@ -183,6 +183,11 @@ LocationResult parseLocationDirective(ParserContext &ctx) {
 					s >> maxSize;
 					location.maxRequestSize = maxSize;
 				}
+				else if (sym == "redirect") {
+					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
+					if (ctx.it->getTag() != Webserv::Token::SYMBOL) return Webserv::UNEXPECTED_TOKEN;
+					location.redirection = ctx.it->getSym();
+				}
 				else return Webserv::UNEXPECTED_SYMBOL;
 				break;
 			case Webserv::Token::OPAREN:
