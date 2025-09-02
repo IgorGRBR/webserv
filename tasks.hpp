@@ -76,6 +76,7 @@ namespace Webserv {
 		void setResponseCode(HTTPReturnCode);
 		void setResponseContentType(HTTPContentType);
 		~ResponseHandler();
+			void setResponseHeader(const std::string& key, const std::string& value);
 	private:
 		ResponseHandler(ServerData&, ConnectionInfo&);
 
@@ -85,6 +86,7 @@ namespace Webserv {
 		std::string responseData;
 		HTTPReturnCode responseCode;
 		HTTPContentType contentType;
+			std::map<std::string, std::string> extraHeaders;
 	};
 }
 

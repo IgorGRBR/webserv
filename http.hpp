@@ -70,7 +70,7 @@ namespace Webserv {
 
 		// Retrieves the HTTP method of the request.
 		HTTPMethod getMethod() const;
-    
+	
 		Option<uint> getContentLength() const;
 
 		Option<std::string> getHeader(const std::string&) const;

@@ -48,6 +48,8 @@ namespace Webserv {
 				Option<uint> maxRequestSize;
 
 				Option<std::string> fileUploadFieldId;
+				
+				Option<std::string> redirection;
 			};
 
 			// A map of locations and their paths.

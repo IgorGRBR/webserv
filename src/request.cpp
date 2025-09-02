@@ -8,6 +8,7 @@
 #include <istream>
 #include <iostream> //added for file uploading
 
+
 typedef Result<Webserv::IFDTask*, Webserv::Error> TaskResult;
 typedef Webserv::Config::Server::Location Location;
 
@@ -27,33 +28,52 @@ namespace Webserv {
 	}
 
 	TaskResult handleLocation(
-		const Url& path,
-		const Config::Server::Location& location,
-		HTTPRequest& request,
-		ServerData& sData,
-		int clientSocketFd
-	) {
-		std::string root;
-
-		// TODO: maybe move this check into configuration parsing step?
-		if (location.root.isSome()) {
-			root = location.root.get();
-		}
-		else if (sData.config.defaultRoot.isSome()) {
-			root = sData.config.defaultRoot.get();
-		}
-		else {
-			return Error(Error::HTTP_ERROR, "Missing root location in configuration");
+	const Url& path,
+	const Config::Server::Location& location,
+	HTTPRequest& request,
+	ServerData& sData,
+	int clientSocketFd
+) {
+	// Early return if redirection is configured
+	if (location.redirection.isSome()) {
+		std::string redirectUrl = location.redirection.get();
+		Result<ResponseHandler*, Error> response = ResponseHandler::tryMake(sData, conn);
+		if (response.isError()) {
+			std::cout << "ERROR: Failed to create ResponseHandler!" << std::endl;
+			return response.getError();
 		}
 
-		ConnectionInfo conn;
-		conn.connectionFd = clientSocketFd;
+		std::string respBody = "";
 
-		Option<std::string> fileContent = NONE;
-		Url rootUrl = Url::fromString(root).get();
-		Url tail = request.getPath().tailDiff(path);
+		response.getValue()->setResponseCode(Webserv::HTTP_MOVED_PERMANENTLY);
+		response.getValue()->setResponseHeader("Location", redirectUrl);
+		response.getValue()->setResponseHeader("Cache-Control", "no cache");
+		response.getValue()->setResponseData(respBody);
 
-		if (tail.getSegments().empty()
+		return response.getValue();
+	}
+
+	std::string root;
+
+	// Existing root location checks
+	if (location.root.isSome()) {
+		root = location.root.get();
+	}
+	else if (sData.config.defaultRoot.isSome()) {
+		root = sData.config.defaultRoot.get();
+	}
+	else {
+		return Error(Error::HTTP_ERROR, "Missing root location in configuration");
+	}
+
+	ConnectionInfo conn;
+	conn.connectionFd = clientSocketFd;
+
+	Option<std::string> fileContent = NONE;
+	Url rootUrl = Url::fromString(root).get();
+	Url tail = request.getPath().tailDiff(path);
+
+	if (tail.getSegments().empty()
 		&& request.getMethod() == POST
 		&& location.fileUploadFieldId.isSome()) {
 			// TODO: handle file uploading here
@@ -144,70 +164,70 @@ namespace Webserv {
 				// 4.2) Write the file content
 				uploadFile << fileContent;
 			}
-			// return Error(Error::GENERIC_ERROR, "Not implemented (REMOVE ME)");
-		}
+  }
 
-		Url respFileUrl = rootUrl + tail;
-		std::string respFilePath = respFileUrl.toString(false);
-		std::cout << "Trying to load: " << respFilePath << std::endl;
+	Url respFileUrl = rootUrl + tail;
+	std::string respFilePath = respFileUrl.toString(false);
+	std::cout << "Trying to load: " << respFilePath << std::endl;
 
-		// Here we should check if the path is a directory or a file, and *then* send back the response.
-		FSType fsType = checkFSType(respFilePath);
-		HTTPContentType contentType = BYTE_STREAM;
-		switch (fsType) {
-		case FS_NONE:
-			fileContent = NONE;
-			break;
-		case FS_FILE: {
-				std::ifstream respFile(respFilePath.c_str());
-				if (respFile.is_open()) {
-					fileContent = readAll(respFile);
-					contentType = getContentType(respFileUrl);
-				}
-			}
-			break;
-		case FS_DIRECTORY:
-			std::string indexStr = location.index.getOr("index.html");
-			Url index = Url::fromString(indexStr).get();
-
-			std::string indexFilePath = (respFileUrl + index).toString(false);
-			std::cout << "Trying to load: " << indexFilePath << std::endl;
-			std::ifstream respFile(indexFilePath.c_str());
-
-			if (respFile.is_open()) { // Try to load index file
+	// Check file system type and load content
+	FSType fsType = checkFSType(respFilePath);
+	HTTPContentType contentType = BYTE_STREAM;
+	switch (fsType) {
+	case FS_NONE:
+		fileContent = NONE;
+		break;
+	case FS_FILE: {
+			std::ifstream respFile(respFilePath.c_str());
+			if (respFile.is_open()) {
 				fileContent = readAll(respFile);
-				Url indexFileUrl = respFileUrl + index;
-				contentType = getContentType(indexFileUrl);
+				contentType = getContentType(respFileUrl);
 			}
-			else { // Try to create directory listing
-				std::string urlPath = request.getPath().toString(true);
-				fileContent = makeDirectoryListing(
-					respFilePath,
-					urlPath,
-					tail.getSegments().size() == 0,
-					location.fileUploadFieldId.isSome()
-				);
-				contentType = HTML;
-			}
-			break;
 		}
+		break;
+	case FS_DIRECTORY:
+		std::string indexStr = location.index.getOr("index.html");
+		Url index = Url::fromString(indexStr).get();
 
-		if (fileContent.isSome()) {
-			Result<ResponseHandler*, Error> response = ResponseHandler::tryMake(sData, conn);
-			if (response.isError()) {
-				std::cout << "ERROR: Failed to create ResponseHandler!" << std::endl;
-				return response.getError();
-			}
-			response.getValue()->setResponseData(fileContent.get());
-			response.getValue()->setResponseContentType(contentType);
-			return response.getValue();
-		}
-		else {
-			return Error(Error::FILE_NOT_FOUND, respFilePath);
-		}
+		std::string indexFilePath = (respFileUrl + index).toString(false);
+		std::cout << "Trying to load: " << indexFilePath << std::endl;
+		std::ifstream respFile(indexFilePath.c_str());
 
-		return Error(Error::GENERIC_ERROR, "Not implemented");
+		if (respFile.is_open()) { // Try to load index file
+			fileContent = readAll(respFile);
+			Url indexFileUrl = respFileUrl + index;
+			contentType = getContentType(indexFileUrl);
+		}
+		else { // Try to create directory listing
+			std::string urlPath = request.getPath().toString(true);
+			fileContent = makeDirectoryListing(
+				respFilePath,
+				urlPath,
+				tail.getSegments().size() == 0,
+				location.fileUploadFieldId.isSome()
+			);
+			contentType = HTML;
+		}
+		break;
 	}
+
+	if (fileContent.isSome()) {
+		Result<ResponseHandler*, Error> response = ResponseHandler::tryMake(sData, conn);
+		if (response.isError()) {
+			std::cout << "ERROR: Failed to create ResponseHandler!" << std::endl;
+			return response.getError();
+		}
+		response.getValue()->setResponseData(fileContent.get());
+		response.getValue()->setResponseContentType(contentType);
+		return response.getValue();
+	}
+	else {
+		return Error(Error::FILE_NOT_FOUND, respFilePath);
+	}
+
+	return Error(Error::GENERIC_ERROR, "Not implemented");
+}
+
 
 	TaskResult analyzeRequest(HTTPRequest& request, ServerData& sData, int clientSocketFd) {
 		// Analyze request
