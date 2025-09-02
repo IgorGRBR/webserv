@@ -57,14 +57,8 @@ Result<bool, Error> ResponseHandler::runTask(FDTaskDispatcher&) {
     std::string responseStr = response.build();
 
     // Write response to client socket with error checking
-    ssize_t written = write(conn.connectionFd, responseStr.c_str(), responseStr.length());
-    if (written == -1) {
-        perror("Write to socket failed");
-        // Log or handle the error (optional)
-    } else if (written < (ssize_t)responseStr.length()) {
-        std::cerr << "Partial write to socket: " << written << " bytes written out of " << responseStr.length() << std::endl;
-        // Handle partial write if necessary (not common for sockets)
-    }
+    write(conn.connectionFd, responseStr.c_str(), responseStr.length());
+
 
     return false;
 }
