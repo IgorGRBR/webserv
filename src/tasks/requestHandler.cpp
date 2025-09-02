@@ -76,18 +76,6 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
                 SEND_ERROR(dispatcher, Error(Error::GENERIC_ERROR, "Invalid host"));
             }
         }
-
-        // Add redirection logic here
-        // ---------------------------------------------------------------
-        // Check if the requested path matches "/old-path".
-        // If it does, modify the request to point to "/new-path".
-        // Example:
-        // Option<std::string> maybePath = reqBuilder.getHeaderPath();
-        // if (maybePath.isSome() && maybePath.get() == "/old-path") {
-        //     reqBuilder.setHeaderPath("/new-path");
-        // }
-        // ---------------------------------------------------------------
-
         if (dataSizeLimit.isNone()) {
             location = sData.locations.tryFindLocation(reqBuilder.getHeaderPath().get());
             if (location.isSome()) {
