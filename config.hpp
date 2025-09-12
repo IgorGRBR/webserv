@@ -16,7 +16,7 @@ namespace Webserv {
 	// `Config` stores parsed configuration for the web server
 	struct Config {
 
-		// `Config::Server` stores parsed configuration of each "subserver". 
+		// `Config::Server` stores parsed configuration of each "subserver".
 		struct Server {
 
 			// `Config::Server::Location` stores parsed configuration of each "subserver" location property.
@@ -48,8 +48,10 @@ namespace Webserv {
 				Option<uint> maxRequestSize;
 
 				Option<std::string> fileUploadFieldId;
-
+        
 				bool allowCGI;
+				
+				Option<std::string> redirection;
 			};
 
 			// A map of locations and their paths.
@@ -70,7 +72,7 @@ namespace Webserv {
 
 		// List of servers.
 		std::vector<Server> servers;
-		
+
 		// Default port of each server.
 		ushort defaultPort;
 
@@ -82,7 +84,7 @@ namespace Webserv {
 
 	// Token parsing stuff. Only used to parse the configuration, which is basically solved at this point, so no
 	// need to delve here.
-	class Token {
+	class  Token {
 	public:
 		enum Tag {
 			SYMBOL,
@@ -100,7 +102,7 @@ namespace Webserv {
 		Tag tag;
 		std::string sym;
 	};
-	
+
 	// Represents an error that might have occured during the parsing of the config file.
 	enum ConfigError {
 		CONFIG_FILE_NOT_FOUND,

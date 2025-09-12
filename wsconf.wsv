@@ -1,7 +1,7 @@
 # This is a simple config file example
 
 server (
-	listen 8064
+	listen 8081
 	maxRequestSize 1024
 	location /awesome (
 		root ./exampleSite/
@@ -23,6 +23,7 @@ server (
 		return 200
 		dirListing
 		allowMethod POST
+		allowMethod GET #This is apparently needed to avoid the "HTTP method is not allowed" error
 		maxRequestSize 100000000
 		fileUpload file
 	)
@@ -37,6 +38,10 @@ server (
 		allowMethod GET
 		allowMethod POST
 		allowCGI
+  )
+  
+	location /awesome/redirect (
+		redirect http://www.google.com
 	)
 )
 

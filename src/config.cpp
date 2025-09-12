@@ -33,11 +33,11 @@ Token::Tag Token::getTag() const {
 
 const char* Token::getTagDesc() const {
 	switch (tag) {
-        case SYMBOL:
+		case SYMBOL:
 			return "SYMBOL";
-        case OPAREN:
+		case OPAREN:
 			return "OPAREN";
-        case CPAREN:
+		case CPAREN:
 			return "CPAREN";
 	}
 	return "IDK";
@@ -183,9 +183,14 @@ LocationResult parseLocationDirective(ParserContext &ctx) {
 					uint maxSize;
 					s >> maxSize;
 					location.maxRequestSize = maxSize;
-				}
+				
 				else if (sym == "allowCGI") {
 					location.allowCGI = true;
+        }
+				else if (sym == "redirect") {
+					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
+					if (ctx.it->getTag() != Webserv::Token::SYMBOL) return Webserv::UNEXPECTED_TOKEN;
+					location.redirection = ctx.it->getSym();
 				}
 				else return Webserv::UNEXPECTED_SYMBOL;
 				break;

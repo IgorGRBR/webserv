@@ -486,7 +486,7 @@ Builder::Builder():
 Result<Builder::State, Webserv::Error> Builder::appendData(const std::string& str) {
 	bool headerComplete = false;
 	switch (internalState) {
-        case INITIAL:
+		case INITIAL:
 			if (lines.size() > 0) {
 				// This is so inefficient...
 				std::string lastCombined = lines.back() + str;
@@ -503,11 +503,11 @@ Result<Builder::State, Webserv::Error> Builder::appendData(const std::string& st
 				headerComplete = true;
 			}
 			break;
-        case HEADER_COMPLETE:
+		case HEADER_COMPLETE:
 			lines.push_back(str);
 			dataSize += str.size();
 			break;
-        }
+		}
 
 	if (headerComplete) {
 		std::stringstream collectedDataStream;
