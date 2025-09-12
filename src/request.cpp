@@ -6,7 +6,6 @@
 #include "webserv.hpp"
 #include "ystl.hpp"
 #include <cstddef>
-#include <istream>
 #include <iostream> //added for file uploading
 
 typedef Result<SharedPtr<Webserv::IFDTask>, Webserv::Error> TaskResult;
