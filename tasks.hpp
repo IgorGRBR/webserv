@@ -108,7 +108,7 @@ namespace Webserv {
 	class CGIReader: public IFDTask {
 	public:
 		// static Result<UniquePtr<CGIReader>, Error> tryMake(int fd, uint bufSize);
-		CGIReader(int pid, int fd, uint rSize = MSG_BUF_SIZE);
+		CGIReader(ConnectionInfo conn, int pid, int fd, uint rSize = MSG_BUF_SIZE);
 
 		Result<bool, Error> runTask(FDTaskDispatcher&);
 		int getDescriptor() const;
@@ -124,10 +124,12 @@ namespace Webserv {
 		uint readSize;
 		std::vector<std::string> readBuffer;
 		Option<SharedPtr<CGIWriter> > writer;
+		ConnectionInfo connectionInfo;
 	};
 
 	typedef std::pair<SharedPtr<CGIWriter>, SharedPtr<CGIReader> > CGIPipeline;
 	Result<CGIPipeline, Error> makeCGIPipeline(
+		ConnectionInfo conn,
 		const Url& binaryLocation,
 		const Url& scriptLocation,
 		const Url& extraPath,

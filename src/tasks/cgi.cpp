@@ -10,7 +10,8 @@
 #include <sys/wait.h>
 
 namespace Webserv {
-	CGIReader::CGIReader(int pid, int fd, uint rSize): fd(fd), pid(pid), readSize(rSize), writer(NONE) {}
+	CGIReader::CGIReader(ConnectionInfo conn, int pid, int fd, uint rSize):
+		fd(fd), pid(pid), readSize(rSize), writer(NONE), connectionInfo(conn) {}
 
 	void CGIReader::setWriter(const SharedPtr<CGIWriter> wPtr) {
 		writer = wPtr;
@@ -33,6 +34,9 @@ namespace Webserv {
 			if (writer.isSome()) {
 				writer.get()->close();
 			}
+
+			// TODO: move the exit code check here.
+
 			return false;
 		}
 
@@ -89,8 +93,9 @@ namespace Webserv {
 		}
 		writeBuffer.clear();
 		std::string str = bufStream.str();
+		std::cout << "Trying to write: " << str << std::endl;
 		int writeError = write(fd, str.c_str(), str.size());
-		if (writeError == -1) return Error(Error::GENERIC_ERROR, "CGIWriter fail");
+		if (writeError == -1) return Error(Error::CGI_IO_ERROR, "CGIWriter fail");
 		return continuous;
 	}
 
@@ -110,14 +115,14 @@ namespace Webserv {
 		closed = true;
 	}
 
-	char** setupEnvp(char* pathInfo, char* queryInfo, char** parentEnvp) {
+	char** setupEnvp(const std::map<std::string, std::string>& extraEnvs, char** parentEnvp) {
 		uint sizeOfEnvp = 0;
 		char** envpPtr = parentEnvp;
 		while (*envpPtr != NULL) {
 			envpPtr++;
 			sizeOfEnvp++;
 		}
-		char** newEnvp = new char*[sizeOfEnvp + 3]();
+		char** newEnvp = new char*[sizeOfEnvp + extraEnvs.size() + 1]();
 		envpPtr = parentEnvp;
 		uint i = 0;
 		while (*envpPtr != NULL) {
@@ -125,13 +130,19 @@ namespace Webserv {
 			envpPtr++;
 			i++;
 		}
-		newEnvp[i] = pathInfo;
-		newEnvp[i + 1] = queryInfo;
-		newEnvp[i + 2] = NULL;
+		for (std::map<std::string, std::string>::const_iterator it = extraEnvs.begin(); it != extraEnvs.end(); it++) {
+			char* cstr = new char[it->second.size() + 1];
+			it->second.copy(cstr, it->second.size());
+			cstr[it->second.size()] = '\0';
+			newEnvp[i] = cstr;
+			i++;
+		}
+		newEnvp[i] = NULL;
 		return newEnvp;
 	}
 
 	Result<CGIPipeline, Error> makeCGIPipeline(
+		ConnectionInfo conn,
 		const Url& binaryLocation,
 		const Url& scriptLocation,
 		const Url& extraPath,
@@ -171,23 +182,11 @@ namespace Webserv {
 			scriptName.copy(args[1], scriptName.size());
 			args[1][scriptName.size()] = 0; // TODO: this may be redundant
 
-			std::string pathInfo = "PATH_INFO=" + extraPath.toString(false, true);
-			char* pathInfoCStr = new char[pathInfo.size() + 1]();
-			pathInfo.copy(pathInfoCStr, pathInfo.size());
-			pathInfoCStr[pathInfo.size()] = '\0';
+			std::map<std::string, std::string> extraEnvs;
+			extraEnvs["PATH_INFO"] = extraPath.toString(false, true);
+			extraEnvs["QUERY_INFO"] = "";
 
-			std::string queryInfo = "QUERY_INFO=";
-			char* queryInfoCStr = new char[queryInfo.size() + 1]();
-			queryInfo.copy(queryInfoCStr, queryInfo.size());
-			queryInfoCStr[queryInfo.size()] = '\0';
-
-#ifdef DEBUG
-			std::cout << "Reporting from the other side:" << std::endl;
-			std::cout << pathInfoCStr << std::endl;
-			std::cout << queryInfoCStr << std::endl;
-#endif
-
-			char** newEnvp = setupEnvp(pathInfoCStr, queryInfoCStr, envp);
+			char** newEnvp = setupEnvp(extraEnvs, envp);
 
 			chdir(scriptLocation.exceptLast().toString(false, true).c_str());
 			execve(binaryLocation.toString(false, true).c_str(), args, newEnvp);
@@ -195,10 +194,13 @@ namespace Webserv {
 			// TODO: the following may be redundant;
 			delete[] args[0];
 			delete[] args[1];
-			delete[] pathInfoCStr;
-			delete[] queryInfoCStr;
+			char** cstr = newEnvp;
+			while(*cstr) {
+				delete[] *cstr;
+				cstr++;
+			}
 			delete[] newEnvp;
-			std::cout << "Something bad happened, and execve failed" << std::endl;
+			std::cerr << "Something bad happened, and execve failed" << std::endl;
 			exit(1);
 		}
 		
@@ -206,7 +208,7 @@ namespace Webserv {
 		close(readPipe[1]);
 
 		SharedPtr<CGIWriter> writer = new CGIWriter(writePipe[1]);
-		SharedPtr<CGIReader> reader = new CGIReader(forkResult, readPipe[0], MSG_BUF_SIZE);
+		SharedPtr<CGIReader> reader = new CGIReader(conn, forkResult, readPipe[0], MSG_BUF_SIZE);
 		reader->setWriter(writer);
 
 		return std::make_pair(writer, reader);

@@ -25,6 +25,7 @@ namespace Webserv {
 	}
 
 	TaskResult handleCGI(
+		int clientSocketFd,
 		const Url& root,
 		const Url& rest,
 		const Config::Server::Location& location,
@@ -55,8 +56,11 @@ namespace Webserv {
 			return Error(Error::FILE_NOT_FOUND, "Interpreter was not found");
 		}
 
+		ConnectionInfo conn;
+		conn.connectionFd = clientSocketFd;
 		// Now construct the pipeline.
 		Result<CGIPipeline, Error> maybePipeline = makeCGIPipeline(
+			conn,
 			maybeInterpLocation.get(),
 			scriptLocation,
 			rest.tail(),
@@ -110,7 +114,7 @@ namespace Webserv {
 		Url tail = request.getPath().tailDiff(path);
 
 		if (location.allowCGI && (request.getMethod() == POST || request.getMethod() == GET)) {
-			return handleCGI(rootUrl, tail, location, request, sData);
+			return handleCGI(clientSocketFd, rootUrl, tail, location, request, sData);
 		}
 
 		if (tail.getSegments().empty()

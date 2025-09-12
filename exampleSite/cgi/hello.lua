@@ -1,3 +1,14 @@
-local cgi = require "libs.cgi"
+require 'libs.SAPI'
+local cgilua = require 'cgilua'
 
-print("Hello world!")
+cgilua.htmlheader()
+cgilua.put([[
+<html>
+	<head>
+		<title>Hello World</title>
+	</head>
+	<body>
+		<strong>Hello World!</strong>
+	</body>
+</html>
+]])

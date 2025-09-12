@@ -79,6 +79,8 @@ namespace Webserv {
 	Option<uint> hexStrToUInt(const std::string&);
 
 	Option<std::string> getFileExtension(const std::string& fileName);
+
+	Option<int> strToInt(const std::string& str);
 }
 
 #endif

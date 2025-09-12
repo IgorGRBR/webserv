@@ -25,6 +25,7 @@ namespace Webserv {
 			FILE_NOT_FOUND,
 			ALLOC_ERROR,
 			FORM_PARSING_ERROR,
+			CGI_IO_ERROR,
 		};
 
 		// Constructs an error instance with provided tag and no associated message.

@@ -47,10 +47,16 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 	char buffer[MSG_BUF_SIZE + 1] = {0};
 	long readResult = read(clientSocketFd, (void*)buffer, MSG_BUF_SIZE);
 	std::string bufStr = std::string(buffer);
-	(void)readResult;
 #ifdef DEBUG
 	std::cout << "Read result: " << readResult << "\nContent:\n" << bufStr << std::endl;
 #endif
+
+	if (readResult == 0) {
+		// I have exactly zero clue why this happens, but this does happen occasionally when you
+		// go back a page in the browser.
+		return false;
+	}
+
 	Result<HTTPRequest::Builder::State, Error> state = reqBuilder.appendData(bufStr);
 
 	if (state.isError()) {

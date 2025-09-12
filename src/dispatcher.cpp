@@ -207,9 +207,14 @@ Option<Webserv::Error> FDTaskDispatcher::update() {
 		// std::cout << "Updating task on fd: " << activeFd << std::endl;
 		Result<bool, Error> res = activeHandlers[activeFd]->runTask(*this);
 		if (res.isError()) {
-			return res.getError();
+			if (res.getError().tag == Error::CGI_IO_ERROR) {
+				freedHandlers.push_back(activeHandlers[activeFd]);
+				std::cerr << "CGI SIGPIPE occured. Shutting down related tasks...";
+			}
+			else
+				return res.getError();
 		}
-		if (!res.getValue()) {
+		else if (!res.getValue()) {
 			freedHandlers.push_back(activeHandlers[activeFd]);
 		}
 	}

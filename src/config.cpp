@@ -383,7 +383,7 @@ Result<Config, ConfigError> Webserv::readConfigFromFile(std::string path) {
 	config.defaultPort = 8080;
 	config.maxRequestSize = 1000000; // TODO: maybe move this to a configurable macro?
 	config.cgiBinds["py"] = "/usr/bin/python3";
-	config.cgiBinds["lua"] = "/usr/bin/lua5.4";
+	config.cgiBinds["lua"] = "/usr/bin/luajit";
 	std::vector<Token>::iterator tokenIt = tokens.begin();
 	std::vector<Token>::iterator tokenEnd = tokens.end();
 	ParserContext context = (ParserContext) {

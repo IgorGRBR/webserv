@@ -1,3 +1,4 @@
+#include <csignal>
 #include <iostream>
 #include <ostream>
 #include <vector>
@@ -100,6 +101,10 @@ int main(int argc, char* argv[], char *envp[]) {
 			dispatcher.registerTask(maybeListener.getValue());
 		}
 	}
+
+	// I'm not entirely sure this is a good idea yet...
+	// Nevermind, apparently it is (source: https://stackoverflow.com/questions/108183/how-to-prevent-sigpipes-or-handle-them-properly).
+	signal(SIGPIPE, SIG_IGN);
 	
 	// Run the task-event loop
 	bool running = true;

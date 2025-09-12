@@ -179,6 +179,8 @@ namespace Webserv {
 		// The default content type of a response is `text/html`.
 		HTTPResponse(Url, HTTPReturnCode = HTTP_NONE);
 
+		static Option<HTTPResponse> fromString(const std::string&);
+
 		// Sets the data segment of the response to the provided string.
 		void setData(const std::string&);
 
