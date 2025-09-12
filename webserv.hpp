@@ -9,6 +9,7 @@
 #include "http.hpp"
 #include "locationTree.hpp"
 #include "url.hpp"
+#include "ystl.hpp"
 #include <netinet/in.h>
 #include <string>
 #include <sys/types.h>
@@ -42,6 +43,8 @@ namespace Webserv {
 		uint maxRequestSize;
 		LocationTreeNode locations;
 		std::set<std::string> serverNames;
+		std::map<std::string, std::string> cgiInterpreters;
+		char** envp;
 	};
 
 	// This struct will contain all the necessary details about current connection to the client.
@@ -67,13 +70,17 @@ namespace Webserv {
 	// Reads everything from the input stream.
 	std::string readAll(std::ifstream&);
 
-	Result<IFDTask*, Error> handleRequest(
+	Result<SharedPtr<IFDTask>, Error> handleRequest(
 		HTTPRequest& request,
 		LocationTreeNode::LocationSearchResult& query,
 		ServerData& sData,
 		int clientSocketFd);
 
 	Option<uint> hexStrToUInt(const std::string&);
+
+	Option<std::string> getFileExtension(const std::string& fileName);
+
+	Option<int> strToInt(const std::string& str);
 }
 
 #endif

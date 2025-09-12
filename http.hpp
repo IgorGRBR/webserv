@@ -74,6 +74,10 @@ namespace Webserv {
 		Option<uint> getContentLength() const;
 
 		Option<std::string> getHeader(const std::string&) const;
+
+		bool isForm() const;
+
+		std::string toString() const;
 	private:
 		// It's here so you can't construct an empty HTTPRequest.
 		void setData(const std::string&);
@@ -174,6 +178,8 @@ namespace Webserv {
 		// Constructs an `HTTPResponse` with the provided url and return code.
 		// The default content type of a response is `text/html`.
 		HTTPResponse(Url, HTTPReturnCode = HTTP_NONE);
+
+		static Option<HTTPResponse> fromString(const std::string&);
 
 		// Sets the data segment of the response to the provided string.
 		void setData(const std::string&);

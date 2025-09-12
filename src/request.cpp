@@ -4,12 +4,12 @@
 #include "http.hpp"
 #include "tasks.hpp"
 #include "webserv.hpp"
+#include "ystl.hpp"
 #include <cstddef>
 #include <istream>
 #include <iostream> //added for file uploading
 
-
-typedef Result<Webserv::IFDTask*, Webserv::Error> TaskResult;
+typedef Result<SharedPtr<Webserv::IFDTask>, Webserv::Error> TaskResult;
 typedef Webserv::Config::Server::Location Location;
 
 namespace Webserv {
@@ -25,6 +25,68 @@ namespace Webserv {
 			return HTTP_DELETE_FLAG & configByte;
 		}
 		return false;
+	}
+
+	TaskResult handleCGI(
+		int clientSocketFd,
+		const Url& root,
+		const Url& rest,
+		const Config::Server::Location& location,
+		HTTPRequest& request,
+		ServerData& sData
+	) {
+		(void)location;
+		// First - determine what kind of interpreter to run for the CGI
+		if (rest.getSegments().empty()) {
+			return Error(Error::GENERIC_ERROR, "No script was selected");
+		}
+
+		Url scriptLocation = root + rest.head();
+		std::string extension = scriptLocation.getExtension().getOr("");
+		std::string interpPath;
+		if (extension.empty()) {
+			interpPath = "";
+		}
+		else {
+			if (sData.cgiInterpreters.find(extension) == sData.cgiInterpreters.end()) {
+				return Error(Error::GENERIC_ERROR, "Could not find appropriate interpreter for the provided file extension");
+			}
+			interpPath = sData.cgiInterpreters[extension];
+		}
+
+		Option<Url> maybeInterpLocation = Url::fromString(interpPath);
+		if (maybeInterpLocation.isNone()) {
+			return Error(Error::FILE_NOT_FOUND, "Interpreter was not found");
+		}
+
+		ConnectionInfo conn;
+		conn.connectionFd = clientSocketFd;
+		// Now construct the pipeline.
+		Result<CGIPipeline, Error> maybePipeline = makeCGIPipeline(
+			conn,
+			maybeInterpLocation.get(),
+			scriptLocation,
+			rest.tail(),
+			sData.envp
+		);
+		if (maybePipeline.isError())
+			return maybePipeline.getError();
+
+		std::string cgiStdinData;
+		// if (request.isForm()) {
+		// 	Result<Form, Error> maybeForm = Form::fromRequest(request);
+		// 	if (maybeForm.isError()) return maybeForm.getError();
+		// 	const Form& form = maybeForm.getValue();
+		// 	// cgiStdinData = form.toCGIString();
+		// }
+		// else {
+		// }
+		cgiStdinData = request.toString();
+
+		CGIPipeline& pipeline = maybePipeline.getValue();
+		pipeline.first->consumeFileData(cgiStdinData);
+
+		return pipeline.second.tryAs<IFDTask>().get();
 	}
 
 	TaskResult handleLocation(
@@ -73,6 +135,10 @@ namespace Webserv {
 	Url rootUrl = Url::fromString(root).get();
 	Url tail = request.getPath().tailDiff(path);
 
+  if (location.allowCGI && (request.getMethod() == POST || request.getMethod() == GET)) {
+    return handleCGI(clientSocketFd, rootUrl, tail, location, request, sData);
+  }
+
 	if (tail.getSegments().empty()
 	&& request.getMethod() == POST
 	&& location.fileUploadFieldId.isSome()) {
@@ -95,6 +161,7 @@ namespace Webserv {
 		if (boundaryPos == std::string::npos) {
 			return Error(Error::HTTP_ERROR, "Missing boundary in Content-Type header"); //TODO: Maybe it needs a more specific error?
 		}
+
 		std::string boundary = contentTypeHeader.substr(boundaryPos + boundaryPrefix.length(), contentTypeHeader.npos);
 		std::string boundLine = "--" + boundary;
 		std::size_t partStart = requestData.find(boundLine);
@@ -183,6 +250,9 @@ namespace Webserv {
 				fileContent = readAll(respFile);
 				contentType = getContentType(respFileUrl);
 			}
+			response.getValue()->setResponseData(fileContent.get());
+			response.getValue()->setResponseContentType(contentType);
+			return SharedPtr<IFDTask>(response.getValue());
 		}
 		break;
 	case FS_DIRECTORY:

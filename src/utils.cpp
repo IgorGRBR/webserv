@@ -92,3 +92,38 @@ Option<uint> Webserv::hexStrToUInt(const std::string& str) {
 	}
 	return result;
 }
+
+Option<std::string> Webserv::getFileExtension(const std::string& fileName) {
+	std::string trimmedFilename = trimString(fileName, '.');
+	if (trimmedFilename.find(".") == std::string::npos) {
+		return NONE;
+	}
+
+	std::stringstream stream(trimmedFilename);
+	std::string line;
+	std::string extension;
+	while (getline(stream, line, '.')) {
+		extension = line;
+	};
+	return extension;
+}
+
+Option<int> Webserv::strToInt(const std::string& str) {
+	int result = 0;
+	bool negative = false;
+	bool readingNumber = false;
+	for (uint i = 0; i < str.size(); i++) {
+		if (str[i] == '-' && !readingNumber) {
+			negative = !negative;
+		}
+		else if (std::isdigit(str[i])) {
+			readingNumber = true;
+			result *= 10;
+			result += str[i] - '0';
+		}
+		else {
+			return NONE;
+		}
+	}
+	return result * (negative ? -1 : 1);
+}

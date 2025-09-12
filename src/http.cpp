@@ -1,6 +1,7 @@
 #include "http.hpp"
 #include "error.hpp"
 #include "url.hpp"
+#include "webserv.hpp"
 #include "ystl.hpp"
 #include <cstddef>
 #include <cstdio>
@@ -93,7 +94,6 @@ Result<HTTPRequest, HTTPRequestError> Webserv::HTTPRequest::fromText(std::string
 		return INVALID_REQUEST; // TODO: a better error message
 	}
 
-	// Rest of the messages - ignore for now
 	bool emptyLine = false;
 	while (std::getline(s, line)) {
 		if (line == "" || line == "\r") {
@@ -137,6 +137,13 @@ HTTPMethod Webserv::HTTPRequest::getMethod() const {
 	return method;
 };
 
+bool Webserv::HTTPRequest::isForm() const {
+	Option<std::string> maybeContentType = getHeader("Content-Type");
+	if (maybeContentType.isNone()) return false;
+	return maybeContentType.get().find("multipart/form-data") != std::string::npos;
+
+};
+
 Option<uint> Webserv::HTTPRequest::getContentLength() const {
 	Option<std::string> contentLengthStr = getHeader("Content-Length");
 	if (contentLengthStr.isNone()) {
@@ -168,8 +175,86 @@ Option<std::string> Webserv::HTTPRequest::getHeader(const std::string& key) cons
 	return NONE;
 }
 
+std::string Webserv::HTTPRequest::toString() const {
+	std::stringstream result;
+
+	result << httpMethodName(method) << " " << path.toString() << " HTTP/1.1" << std::endl;
+	
+	for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); it++) {
+		result << it->first << ": " << it->second << std::endl;
+	}
+
+	result << std::endl << data;
+
+	return result.str();
+}
+
 HTTPResponse::HTTPResponse(Webserv::Url uri, ReturnCode retCode): resourcePath(uri), retCode(retCode), headers() {
 	headers["Content-Type"] = "text/html";
+}
+
+Option<Webserv::HTTPResponse> HTTPResponse::fromString(const std::string& text) {
+	HTTPResponse response((Url()));
+	std::stringstream s(text);
+
+	std::string line;
+	if (!std::getline(s, line)) {
+		return NONE;
+	}
+
+	// Parse the start line
+	std::stringstream firstLineStream(line);
+	std::string word;
+
+	// Path
+
+	// First - we skip the HTTP version part.
+	if (!std::getline(firstLineStream, word, ' ')) {
+		return NONE;
+	}
+
+	// Now we read return code in to `word` itself.
+	if (!std::getline(firstLineStream, word, ' ')) {
+		return NONE;
+	}
+
+	Option<int> maybeCode = strToInt(word);
+	if (maybeCode.isSome()) {
+		response.retCode = static_cast<HTTPReturnCode>(maybeCode.get());
+	}
+	else {
+		return NONE;
+	}
+
+	bool emptyLine = false;
+	while (std::getline(s, line)) {
+		if (line == "" || line == "\r") {
+			emptyLine = true;
+			break;
+		}
+
+		// Parse a header
+		std::string word;
+		std::stringstream wordStream(line);
+		if (!std::getline(wordStream, word, ':')) {
+			return NONE;
+		}
+		std::string paramName = word;
+
+		if (!std::getline(wordStream, word, ':')) {
+			return NONE;
+		}
+		std::string paramValue = trimString(word, ' ');
+
+		response.headers[paramName] = paramValue;
+	}
+
+	// Now read the data segment if it is present
+	if (!emptyLine) return NONE;
+	std::getline(s, line, '\0');
+	response.data = line;
+
+	return NONE;
 }
 
 void HTTPResponse::setData(const std::string& data) {

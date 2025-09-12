@@ -47,10 +47,16 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 	char buffer[MSG_BUF_SIZE + 1] = {0};
 	long readResult = read(clientSocketFd, (void*)buffer, MSG_BUF_SIZE);
 	std::string bufStr = std::string(buffer, readResult);
-	(void)readResult;
 #ifdef DEBUG
-	// std::cout << "Read result: " << readResult << "\nContent:\n" << bufStr << std::endl;
+	std::cout << "Read result: " << readResult << "\nContent:\n" << bufStr << std::endl;
 #endif
+
+	if (readResult == 0) {
+		// I have exactly zero clue why this happens, but this does happen occasionally when you
+		// go back a page in the browser.
+		return false;
+	}
+
 	Result<HTTPRequest::Builder::State, Error> state = reqBuilder.appendData(bufStr);
 
 	if (state.isError()) {
@@ -129,7 +135,7 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 					return Error(Error::SHUTDOWN_SIGNAL);
 				}
 				else {
-					Result<IFDTask*, Error> nextTask = handleRequest(
+					Result<SharedPtr<IFDTask>, Error> nextTask = handleRequest(
 						request.ref(),
 						location.get(),
 						sData,
@@ -139,6 +145,10 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 						SEND_ERROR(dispatcher, nextTask.getError());
 					}
 					dispatcher.registerTask(nextTask.getValue());
+					Option<SharedPtr<CGIReader> > maybeReader = nextTask.getValue().tryAs<CGIReader>();
+					if (maybeReader.isSome() && maybeReader.get()->getWriter().isSome()) {
+						dispatcher.registerTask(maybeReader.get()->getWriter().get().tryAs<IFDTask>().get());
+					}
 				}
 				return false;
 			}

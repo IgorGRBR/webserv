@@ -357,6 +357,8 @@ private:
 template <typename T>
 class SharedPtr {
 public:
+	// This shouldn't exist, but C++ STL will cry if it doesn't.
+	SharedPtr(): ptr(NULL), refCount(new uint(1)) {};
 
 	// Constructs a `SharedPtr` with pointer `p`, and initializes its reference count to 1.
 	SharedPtr(T* p): ptr(p), refCount(new uint(1)) {};
@@ -396,6 +398,22 @@ public:
 	uint getRefCount() const {
 		return *refCount;
 	}
+
+	template <typename K>
+	Option<SharedPtr<K> > tryAs() {
+		K* kptr = dynamic_cast<K*>(ptr);
+		if (!kptr) return NONE;
+		return SharedPtr<K>::_withRefCount(kptr, refCount);
+	}
+
+	static SharedPtr<T> _withRefCount(T* ptr, uint* rfc) {
+		SharedPtr<T> shared;
+		shared.tryDelete();
+		shared.refCount = rfc;
+		(*shared.refCount)++;
+		shared.ptr = ptr;
+		return shared;
+	} 
 private:
 	T* ptr;
 	uint* refCount;

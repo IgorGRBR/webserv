@@ -33,6 +33,13 @@ server (
 		allowMethod GET
 	)
 
+	location /awesome/cgi (
+		root ./exampleSite/cgi
+		allowMethod GET
+		allowMethod POST
+		allowCGI
+  )
+  
 	location /awesome/redirect (
 		redirect http://www.google.com
 	)

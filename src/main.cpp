@@ -1,3 +1,4 @@
+#include <csignal>
 #include <iostream>
 #include <ostream>
 #include <vector>
@@ -16,7 +17,7 @@ typedef Webserv::FDTaskDispatcher FDTaskDispatcher;
 typedef Webserv::ClientListener ClientListener;
 
 void urlTests() {
-	Webserv::Url test = Webserv::Url::fromString("localhost:655/search/thing").get();
+	Webserv::Url test = Webserv::Url::fromString("localhost:655/search/thing?stuff=1&otherThing=2").get();
 
 	std::cout << test.getProtocol() << std::endl;
 	for (std::vector<std::string>::const_iterator it = test.getSegments().begin(); it != test.getSegments().end(); it++) {
@@ -26,6 +27,11 @@ void urlTests() {
 
 	Url tail = test.tail();
 	for (std::vector<std::string>::const_iterator it = tail.getSegments().begin(); it != tail.getSegments().end(); it++) {
+		std::cout << "  " << *it << std::endl;
+	}
+
+	Url bigHead = test.exceptLast();
+	for (std::vector<std::string>::const_iterator it = bigHead.getSegments().begin(); it != bigHead.getSegments().end(); it++) {
 		std::cout << "  " << *it << std::endl;
 	}
 }
@@ -63,7 +69,7 @@ void optionTests() {
 	std::cout << "u is " << uReal.toString() << std::endl;
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[], char *envp[]) {
 	// Get the path of a config file
 	std::string configPath;
 	if (argc == 1) {
@@ -76,6 +82,7 @@ int main(int argc, char* argv[]) {
 	// urlTests();
 	// optionTests();
 	// hexDecTests();
+	// return 0;
 	// Load the config
 	std::cout << "A webserver has started" << std::endl;
 	Config config = Webserv::readConfigFromFile(configPath).getValue(); // TODO: handle this better
@@ -85,7 +92,7 @@ int main(int argc, char* argv[]) {
 	// Configure the initial client connection listeners
 	FDTaskDispatcher dispatcher;
 	for (uint i = 0; i < config.servers.size(); i++) {
-		Result<ClientListener*, Error> maybeListener = ClientListener::tryMake(config, config.servers[i]);
+		Result<ClientListener*, Error> maybeListener = ClientListener::tryMake(config, config.servers[i], envp);
 		if (maybeListener.isError()) {
 			std::cout << "Critical error when trying to construct a client listener: "
 				<< maybeListener.getError().getTagMessage() << std::endl;
@@ -94,6 +101,10 @@ int main(int argc, char* argv[]) {
 			dispatcher.registerTask(maybeListener.getValue());
 		}
 	}
+
+	// I'm not entirely sure this is a good idea yet...
+	// Nevermind, apparently it is (source: https://stackoverflow.com/questions/108183/how-to-prevent-sigpipes-or-handle-them-properly).
+	signal(SIGPIPE, SIG_IGN);
 	
 	// Run the task-event loop
 	bool running = true;
