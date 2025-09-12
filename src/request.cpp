@@ -115,7 +115,7 @@ namespace Webserv {
 		response.getValue()->setResponseHeader("Cache-Control", "no cache");
 		response.getValue()->setResponseData(respBody);
 
-		return response.getValue();
+		return SharedPtr<IFDTask>(response.getValue());
 	}
 
 	std::string root;
@@ -250,9 +250,9 @@ namespace Webserv {
 				fileContent = readAll(respFile);
 				contentType = getContentType(respFileUrl);
 			}
-			response.getValue()->setResponseData(fileContent.get());
-			response.getValue()->setResponseContentType(contentType);
-			return SharedPtr<IFDTask>(response.getValue());
+			else {
+				return Error(Error::GENERIC_ERROR, "Failed to open a file");
+			}
 		}
 		break;
 	case FS_DIRECTORY:
@@ -289,7 +289,7 @@ namespace Webserv {
 		}
 		response.getValue()->setResponseData(fileContent.get());
 		response.getValue()->setResponseContentType(contentType);
-		return response.getValue();
+		return SharedPtr<IFDTask>(response.getValue());
 	}
 	else {
 		return Error(Error::FILE_NOT_FOUND, respFilePath);

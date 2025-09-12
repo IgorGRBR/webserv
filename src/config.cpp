@@ -183,7 +183,7 @@ LocationResult parseLocationDirective(ParserContext &ctx) {
 					uint maxSize;
 					s >> maxSize;
 					location.maxRequestSize = maxSize;
-				
+				}
 				else if (sym == "allowCGI") {
 					location.allowCGI = true;
         }
