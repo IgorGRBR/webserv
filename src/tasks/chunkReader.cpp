@@ -1,5 +1,6 @@
 #include "dispatcher.hpp"
 #include "error.hpp"
+#include "http.hpp"
 #include "tasks.hpp"
 #include "webserv.hpp"
 #include <string>
@@ -107,11 +108,16 @@ namespace Webserv {
 		ConnectionInfo conn;
 		conn.connectionFd = clientSocketFd;
 
-		Result<ResponseHandler*, Error> maybeRequest = ResponseHandler::tryMakeErrorPage(sData, conn, error);
-		if (maybeRequest.isError()) {
-			return maybeRequest.getError();
+		HTTPResponse resp = HTTPResponse(Url());
+		resp.setCode(error.getHTTPCode());
+		resp.setData(makeErrorPage(error));
+		resp.setContentType(contentTypeString(HTML));
+
+		Result<ResponseHandler*, Error> maybeRespTask = ResponseHandler::tryMake(conn, resp);
+		if (maybeRespTask.isError()) {
+			return maybeRespTask.getError();
 		}
-		dispatcher.registerTask(maybeRequest.getValue());
+		dispatcher.registerTask(maybeRespTask.getValue());
 		return NONE;
 	}
 

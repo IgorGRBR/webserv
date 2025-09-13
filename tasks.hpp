@@ -64,29 +64,25 @@ namespace Webserv {
 	};
 
 	// `ResponseHandler` is a task that is responsible for building a HTTP response and sending it back to the client.
-	class ResponseHandler: public IFDTask, public IFDConsumer {
+	class ResponseHandler: public IFDTask {
 	public:
-		static Result<ResponseHandler*, Error> tryMake(ServerData&, ConnectionInfo&);
-		static Result<ResponseHandler*, Error> tryMakeErrorPage(ServerData&, ConnectionInfo&, Error);
+		static Result<ResponseHandler*, Error> tryMake(ConnectionInfo&, const HTTPResponse&);
+		// static Result<ResponseHandler*, Error> tryMakeErrorPage(ServerData&, ConnectionInfo&, Error);
 		Result<bool, Error> runTask(FDTaskDispatcher&);
 		int getDescriptor() const;
 		IOMode getIOMode() const;
-		void consumeFileData(const std::string&);
-		void setResponseData(const std::string&);
-		void setResponseCode(HTTPReturnCode);
-		void setResponseContentType(HTTPContentType);
 		~ResponseHandler();
-			void setResponseHeader(const std::string& key, const std::string& value);
 	private:
-		ResponseHandler(ServerData&, ConnectionInfo&);
+		ResponseHandler(ConnectionInfo&, const HTTPResponse&);
 
-		bool ready;
-		ServerData sData;
+		// bool ready;
+		// ServerData sData;
 		ConnectionInfo conn;
-		std::string responseData;
-		HTTPReturnCode responseCode;
-		HTTPContentType contentType;
-			std::map<std::string, std::string> extraHeaders;
+		// std::string responseData;
+		// HTTPReturnCode responseCode;
+		// HTTPContentType contentType;
+		// std::map<std::string, std::string> extraHeaders;
+		HTTPResponse response;
 	};
 
 	class CGIWriter: public IFDTask, public IFDConsumer {

@@ -4,7 +4,6 @@
 #include "html.hpp"
 #include "http.hpp"
 #include <cctype>
-#include <cstring>
 #include <unistd.h>
 #include "webserv.hpp"
 #include "ystl.hpp"

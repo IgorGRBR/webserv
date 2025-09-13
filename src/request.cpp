@@ -3,6 +3,7 @@
 #include "error.hpp"
 #include "http.hpp"
 #include "tasks.hpp"
+#include "url.hpp"
 #include "webserv.hpp"
 #include "ystl.hpp"
 #include <cstddef>
@@ -101,18 +102,17 @@ namespace Webserv {
 	// Early return if redirection is configured
 	if (location.redirection.isSome()) {
 		std::string redirectUrl = location.redirection.get();
-		Result<ResponseHandler*, Error> response = ResponseHandler::tryMake(sData, conn);
+
+		HTTPResponse resp = HTTPResponse(Url());
+		resp.setCode(Webserv::HTTP_MOVED_PERMANENTLY);
+		resp.setHeader("Location", redirectUrl);
+		resp.setHeader("Cache-Control", "no cache");
+		
+		Result<ResponseHandler*, Error> response = ResponseHandler::tryMake(conn, resp);
 		if (response.isError()) {
 			std::cout << "ERROR: Failed to create ResponseHandler!" << std::endl;
 			return response.getError();
 		}
-
-		std::string respBody = "";
-
-		response.getValue()->setResponseCode(Webserv::HTTP_MOVED_PERMANENTLY);
-		response.getValue()->setResponseHeader("Location", redirectUrl);
-		response.getValue()->setResponseHeader("Cache-Control", "no cache");
-		response.getValue()->setResponseData(respBody);
 
 		return SharedPtr<IFDTask>(response.getValue());
 	}
@@ -281,13 +281,16 @@ namespace Webserv {
 	}
 
 	if (fileContent.isSome()) {
-		Result<ResponseHandler*, Error> response = ResponseHandler::tryMake(sData, conn);
+		HTTPResponse resp = HTTPResponse(Url());
+		resp.setData(fileContent.get());
+		resp.setContentType(contentTypeString(contentType));
+		
+		Result<ResponseHandler*, Error> response = ResponseHandler::tryMake(conn, resp);
 		if (response.isError()) {
 			std::cout << "ERROR: Failed to create ResponseHandler!" << std::endl;
 			return response.getError();
 		}
-		response.getValue()->setResponseData(fileContent.get());
-		response.getValue()->setResponseContentType(contentType);
+
 		return SharedPtr<IFDTask>(response.getValue());
 	}
 	else {

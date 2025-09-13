@@ -5,7 +5,6 @@
 #include "http.hpp"
 #include "webserv.hpp"
 #include "ystl.hpp"
-#include <cstring>
 #include <unistd.h>
 #include "tasks.hpp"
 
@@ -162,15 +161,21 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 	return false;
 }
 
+// TODO: this code has been duplicated from `chunkReader.cpp`. Extracting it into a separate function is a good idea.
 Option<Error> RequestHandler::sendError(FDTaskDispatcher& dispatcher, Error error) {
 	ConnectionInfo conn;
 	conn.connectionFd = clientSocketFd;
 
-	Result<ResponseHandler*, Error> maybeRequest = ResponseHandler::tryMakeErrorPage(sData, conn, error);
-	if (maybeRequest.isError()) {
-		return maybeRequest.getError();
+	HTTPResponse resp = HTTPResponse(Url());
+	resp.setCode(error.getHTTPCode());
+	resp.setData(makeErrorPage(error));
+	resp.setContentType(contentTypeString(HTML));
+
+	Result<ResponseHandler*, Error> maybeRespTask = ResponseHandler::tryMake(conn, resp);
+	if (maybeRespTask.isError()) {
+		return maybeRespTask.getError();
 	}
-	dispatcher.registerTask(maybeRequest.getValue());
+	dispatcher.registerTask(maybeRespTask.getValue());
 	return NONE;
 }
 
