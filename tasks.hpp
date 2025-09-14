@@ -72,6 +72,8 @@ namespace Webserv {
 		int getDescriptor() const;
 		IOMode getIOMode() const;
 		~ResponseHandler();
+		ResponseHandler(const ConnectionInfo&);
+		void setResponse(const HTTPResponse& resp);
 	private:
 		ResponseHandler(ConnectionInfo&, const HTTPResponse&);
 
@@ -82,7 +84,7 @@ namespace Webserv {
 		// HTTPReturnCode responseCode;
 		// HTTPContentType contentType;
 		// std::map<std::string, std::string> extraHeaders;
-		HTTPResponse response;
+		Option<HTTPResponse> response;
 	};
 
 	class CGIWriter: public IFDTask, public IFDConsumer {
@@ -106,7 +108,13 @@ namespace Webserv {
 	class CGIReader: public IFDTask {
 	public:
 		// static Result<UniquePtr<CGIReader>, Error> tryMake(int fd, uint bufSize);
-		CGIReader(ConnectionInfo conn, int pid, int fd, uint rSize = MSG_BUF_SIZE);
+		CGIReader(
+			ConnectionInfo conn,
+			const SharedPtr<ResponseHandler>& resp,
+			int pid,
+			int fd,
+			uint rSize = MSG_BUF_SIZE
+		);
 
 		Result<bool, Error> runTask(FDTaskDispatcher&);
 		int getDescriptor() const;
@@ -114,6 +122,7 @@ namespace Webserv {
 		std::string readAll();
 		void setWriter(const SharedPtr<CGIWriter> wPtr);
 		Option<SharedPtr<CGIWriter> > getWriter();
+		SharedPtr<ResponseHandler> getResponseHandler();
 		// void onProcessExit(FDTaskDispatcher&);
 		// int getPID() const;
 	private:
@@ -122,6 +131,7 @@ namespace Webserv {
 		uint readSize;
 		std::vector<std::string> readBuffer;
 		Option<SharedPtr<CGIWriter> > writer;
+		SharedPtr<ResponseHandler> responseHandler;
 		ConnectionInfo connectionInfo;
 	};
 

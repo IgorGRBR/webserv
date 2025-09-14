@@ -1,8 +1,10 @@
 #include "dispatcher.hpp"
+#include "http.hpp"
 #include "tasks.hpp"
 #include "error.hpp"
 #include "webserv.hpp"
 #include "ystl.hpp"
+#include <cstdlib>
 #include <sstream>
 #include <string>
 #include <unistd.h>
@@ -10,11 +12,21 @@
 #include <sys/wait.h>
 
 namespace Webserv {
-	CGIReader::CGIReader(ConnectionInfo conn, int pid, int fd, uint rSize):
-		fd(fd), pid(pid), readSize(rSize), writer(NONE), connectionInfo(conn) {}
+	CGIReader::CGIReader(
+		ConnectionInfo conn,
+		const SharedPtr<ResponseHandler>& resp,
+		int pid,
+		int fd,
+		uint rSize
+	):
+		fd(fd), pid(pid), readSize(rSize), writer(NONE), responseHandler(resp), connectionInfo(conn) {}
 
 	void CGIReader::setWriter(const SharedPtr<CGIWriter> wPtr) {
 		writer = wPtr;
+	}
+
+	SharedPtr<ResponseHandler> CGIReader::getResponseHandler() {
+		return responseHandler;
 	}
 
 	Result<bool, Error> CGIReader::runTask(FDTaskDispatcher& dispatcher) {
@@ -36,18 +48,42 @@ namespace Webserv {
 			}
 
 			// TODO: move the exit code check here.
+			int wstatus;
+			// No WNOHANG, because otherwise we will never be able to determine if it finishes running.
+			int waitResult = waitpid(pid, &wstatus, 0);
+			if (waitResult < 0) return Error(Error::GENERIC_ERROR, "waitpid error");
+			if (WIFEXITED(wstatus)) {
+#ifdef DEBUG
+				std::cout << "Process " << pid << " has stopeed, cooking it rn" << std::endl;
+#endif
+				int exitCode = WEXITSTATUS(wstatus);
+
+				HTTPResponse resp((Url()));
+				std::stringstream finalBuffer;
+				for (std::vector<std::string>::iterator it = readBuffer.begin(); it != readBuffer.end(); it++) {
+					finalBuffer << *it;
+				}
+
+				if (exitCode != 0) {
+					resp.setCode(HTTP_INTERNAL_SERVER_ERROR);
+					resp.setContentType(contentTypeString(HTML));
+					resp.setData(makeErrorPage(Error(Error::CGI_RUNTIME_FAULT, finalBuffer.str())));
+				}
+				else {
+					std::string finalBufferStr = "HTTP/1.1 200 OK\n" + finalBuffer.str();
+					Option<HTTPResponse> maybeResponse = HTTPResponse::fromString(finalBufferStr);
+					if (maybeResponse.isNone()) {
+						return Error(Error::HTTP_ERROR, "Failed to construct a response. " + finalBufferStr);
+					}
+					resp = maybeResponse.get();
+				}
+				responseHandler->setResponse(resp);
+				return false;
+			}
 
 			return false;
 		}
 
-		// int wstatus;
-		// int waitResult = waitpid(pid, &wstatus, WNOHANG);
-		// if (waitResult < 0) return Error(Error::GENERIC_ERROR, "waitpid error");
-		// if (WIFEXITED(wstatus)) {
-		// 	std::cout << "Process " << pid << " has stopeed, cooking it rn" << std::endl;
-		// 	onProcessExit(dispatcher);
-		// 	return false;
-		// }
 		return true;
 	}
 
@@ -62,22 +98,6 @@ namespace Webserv {
 	Option<SharedPtr<CGIWriter> > CGIReader::getWriter() {
 		return writer;
 	}
-
-// 	void CGIReader::onProcessExit(FDTaskDispatcher& dispatcher) {
-// 		if (writer.isSome()) {
-// 			writer.get()->close();
-// 			// dispatcher.removeByFd(writer.get()->getDescriptor());
-// 			(void)dispatcher;
-// #ifdef DEBUG
-// 		std::cout << "CGIReader signing off..." << std::endl;
-// #endif
-// 		}
-// 		// dispatcher.removeByFd(getDescriptor());
-// 	}
-
-// 	int CGIReader::getPID() const {
-// 		return pid;
-// 	}
 
 	CGIWriter::CGIWriter(int fd, bool cont): fd(fd), continuous(cont), closed(false) {
 		std::cout << "CGIWriter: " << fd << std::endl;
@@ -166,6 +186,7 @@ namespace Webserv {
 		if (forkResult == 0) {
 			dup2(writePipe[0], STDIN_FILENO);
 			dup2(readPipe[1], STDOUT_FILENO);
+			dup2(readPipe[1], STDERR_FILENO); // Eh, screw it.
 
 			close(writePipe[1]);
 			close(readPipe[0]);
@@ -207,8 +228,9 @@ namespace Webserv {
 		close(writePipe[0]);
 		close(readPipe[1]);
 
+		SharedPtr<ResponseHandler> respHandler = new ResponseHandler(conn);
 		SharedPtr<CGIWriter> writer = new CGIWriter(writePipe[1]);
-		SharedPtr<CGIReader> reader = new CGIReader(conn, forkResult, readPipe[0], MSG_BUF_SIZE);
+		SharedPtr<CGIReader> reader = new CGIReader(conn, respHandler, forkResult, readPipe[0], MSG_BUF_SIZE);
 		reader->setWriter(writer);
 
 		return std::make_pair(writer, reader);

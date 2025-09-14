@@ -254,7 +254,7 @@ Option<Webserv::HTTPResponse> HTTPResponse::fromString(const std::string& text) 
 	std::getline(s, line, '\0');
 	response.data = line;
 
-	return NONE;
+	return response;
 }
 
 void HTTPResponse::setData(const std::string& data) {

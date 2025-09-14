@@ -1,7 +1,6 @@
 #ifndef WEBSERV_HPP
 #define WEBSERV_HPP
 
-#include <cstdlib>
 #include <fstream>
 #include "config.hpp"
 #include "dispatcher.hpp"

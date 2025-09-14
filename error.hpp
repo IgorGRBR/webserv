@@ -26,6 +26,7 @@ namespace Webserv {
 			ALLOC_ERROR,
 			FORM_PARSING_ERROR,
 			CGI_IO_ERROR,
+			CGI_RUNTIME_FAULT,
 		};
 
 		// Constructs an error instance with provided tag and no associated message.

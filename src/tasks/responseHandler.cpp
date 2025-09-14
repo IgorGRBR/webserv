@@ -13,6 +13,11 @@ typedef Webserv::Error Error;
 typedef Webserv::Config::Server::Location Location;
 typedef Webserv::ResponseHandler ResponseHandler;
 
+ResponseHandler::ResponseHandler(const ConnectionInfo& ci):
+	conn(ci),
+	response(NONE)
+{}
+
 ResponseHandler::ResponseHandler(ConnectionInfo& ci, const HTTPResponse& resp):
 	conn(ci),
 	response(resp)
@@ -22,9 +27,9 @@ Result<ResponseHandler*, Error> ResponseHandler::tryMake(ConnectionInfo& ci, con
 	return new ResponseHandler(ci, resp);
 }
 
-
 Result<bool, Error> ResponseHandler::runTask(FDTaskDispatcher&) {
-	std::string responseStr = response.build();
+	if (response.isNone()) return true;
+	std::string responseStr = response.get().build();
 
 	// Write response to client socket with error checking
 	write(conn.connectionFd, responseStr.c_str(), responseStr.length());
@@ -38,6 +43,10 @@ int ResponseHandler::getDescriptor() const {
 
 Webserv::IOMode ResponseHandler::getIOMode() const {
 	return WRITE_MODE;
+}
+
+void ResponseHandler::setResponse(const HTTPResponse& resp) {
+	response = resp;
 }
 
 ResponseHandler::~ResponseHandler() {

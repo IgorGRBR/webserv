@@ -39,6 +39,8 @@ const char* Webserv::Error::getTagMessage() const {
 			return "Error when parsing HTTP form";
 		case CGI_IO_ERROR:
 			return "Error with CGI IO or pipes";
+		case CGI_RUNTIME_FAULT:
+			return "Error occured when executing CGI script";
 	}
 	return "Unknown";
 }
@@ -59,6 +61,7 @@ Webserv::HTTPReturnCode Webserv::Error::getHTTPCode() const {
 		case ALLOC_ERROR: return HTTP_INTERNAL_SERVER_ERROR;
 		case FORM_PARSING_ERROR: return HTTP_INTERNAL_SERVER_ERROR;
 		case CGI_IO_ERROR: return HTTP_INTERNAL_SERVER_ERROR;
+		case CGI_RUNTIME_FAULT: return HTTP_INTERNAL_SERVER_ERROR;
 	}
 	return HTTP_NONE;
 }

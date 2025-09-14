@@ -145,8 +145,10 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 					}
 					dispatcher.registerTask(nextTask.getValue());
 					Option<SharedPtr<CGIReader> > maybeReader = nextTask.getValue().tryAs<CGIReader>();
-					if (maybeReader.isSome() && maybeReader.get()->getWriter().isSome()) {
-						dispatcher.registerTask(maybeReader.get()->getWriter().get().tryAs<IFDTask>().get());
+					if (maybeReader.isSome()) {
+						dispatcher.registerTask(maybeReader.get()->getResponseHandler().tryAs<IFDTask>().get());
+						if (maybeReader.get()->getWriter().isSome())
+							dispatcher.registerTask(maybeReader.get()->getWriter().get().tryAs<IFDTask>().get());
 					}
 				}
 				return false;
