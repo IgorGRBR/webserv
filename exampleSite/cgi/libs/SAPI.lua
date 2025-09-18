@@ -1,7 +1,7 @@
-SAPI = {
+return {
 	Request = {
 		getpostdata = function(n)
-			return io.read()
+			return io.read("*a")
 		end,
 		servervariable = function(varname)
 			return os.getenv(varname)

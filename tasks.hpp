@@ -141,6 +141,7 @@ namespace Webserv {
 		const Url& binaryLocation,
 		const Url& scriptLocation,
 		const Url& extraPath,
+		const HTTPRequest& request,
 		char** envp
 	);
 }

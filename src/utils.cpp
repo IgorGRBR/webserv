@@ -38,6 +38,7 @@ const std::string errorTemplate =
 "			box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);"
 "			max-width: 500px;"
 "			text-align: center;"
+"			white-space: pre-wrap;"
 "		}"
 "		h1 {"
 "			color: #d9534f;"

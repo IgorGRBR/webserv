@@ -102,17 +102,15 @@ Result<HTTPRequest, HTTPRequestError> Webserv::HTTPRequest::fromText(std::string
 		}
 
 		// Parse a header
-		std::string word;
-		std::stringstream wordStream(line);
-		if (!std::getline(wordStream, word, ':')) {
+		size_t colonPos = line.find(":");
+		if (colonPos == line.npos) {
 			return INVALID_REQUEST; // TODO: a better error message
 		}
-		std::string paramName = word;
-
-		if (!std::getline(wordStream, word, ':')) {
-			return INVALID_REQUEST; // TODO: a better error message
-		}
-		std::string paramValue = trimString(word, ' ');
+		std::string paramName = line.substr(0, colonPos);
+		std::string paramValue = trimString(trimString(
+				line.substr(colonPos + 1, line.size() - colonPos),
+				' '
+			), '\r');
 
 		request.headers[paramName] = paramValue;
 	}
@@ -244,7 +242,7 @@ Option<Webserv::HTTPResponse> HTTPResponse::fromString(const std::string& text) 
 		if (!std::getline(wordStream, word, ':')) {
 			return NONE;
 		}
-		std::string paramValue = trimString(word, ' ');
+		std::string paramValue = trimString(trimString(word, ' '), '\r');
 
 		response.headers[paramName] = paramValue;
 	}

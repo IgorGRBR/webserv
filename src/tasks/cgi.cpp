@@ -5,6 +5,7 @@
 #include "webserv.hpp"
 #include "ystl.hpp"
 #include <cstdlib>
+#include <cstring>
 #include <sstream>
 #include <string>
 #include <unistd.h>
@@ -151,9 +152,11 @@ namespace Webserv {
 			i++;
 		}
 		for (std::map<std::string, std::string>::const_iterator it = extraEnvs.begin(); it != extraEnvs.end(); it++) {
-			char* cstr = new char[it->second.size() + 1];
-			it->second.copy(cstr, it->second.size());
-			cstr[it->second.size()] = '\0';
+			char* cstr = new char[it->first.size() + it->second.size() + 2];
+			it->first.copy(cstr, it->first.size());
+			cstr[it->first.size()] = '=';
+			it->second.copy(cstr + it->first.size() + 1, it->second.size());
+			cstr[it->first.size() + it->second.size() + 1] = '\0';
 			newEnvp[i] = cstr;
 			i++;
 		}
@@ -161,16 +164,26 @@ namespace Webserv {
 		return newEnvp;
 	}
 
+	Option<std::string> getPwd(char** envp) {
+		while (*envp) {
+			if (std::strncmp(*envp, "PWD=", 4) == 0) {
+				std::string str(*envp);
+				return str.substr(4, str.size() - 4);
+			}
+			envp++;
+		}
+		return NONE;
+	}
+
 	Result<CGIPipeline, Error> makeCGIPipeline(
 		ConnectionInfo conn,
 		const Url& binaryLocation,
 		const Url& scriptLocation,
 		const Url& extraPath,
+		const HTTPRequest& request,
 		char** envp
 	) {
-		(void)binaryLocation;
 		std::string scriptName = scriptLocation.getSegments().back();
-		// std::string env = getenv
 		int readPipe[2];
 		int writePipe[2];
 
@@ -181,6 +194,21 @@ namespace Webserv {
 		if (pipe(writePipe) == -1) {
 			return Error(Error::GENERIC_ERROR, "Pipe error");
 		}
+
+		// TODO: I'll keep this here for debugging purposes, but it should really be moved
+		// into the child subprocess.
+		std::map<std::string, std::string> extraEnvs;
+		extraEnvs["PATH_INFO"] = extraPath.toString(false, true);
+		extraEnvs["QUERY_STRING"] = extraPath.queryToString();
+		extraEnvs["CONTENT_LENGTH"] = request.getHeader("Content-Length").getOr("");
+		extraEnvs["CONTENT_TYPE"] = request.getHeader("Content-Type").getOr("");
+		extraEnvs["SERVER_SOFTWARE"] = "webserv";
+		extraEnvs["REQUEST_METHOD"] = httpMethodName(request.getMethod());
+		Option<std::string> pwd = getPwd(envp);
+		if (pwd.isSome()) {
+			extraEnvs["PATH_TRANSLATED"] = pwd.get() + scriptLocation.toString(true, true);
+		}
+		char** newEnvp = setupEnvp(extraEnvs, envp);
 
 		int forkResult = fork();
 		if (forkResult == 0) {
@@ -195,7 +223,7 @@ namespace Webserv {
 			close(writePipe[0]);
 			close(readPipe[1]);
 
-			char* args[3];// = new char[2]();
+			char* args[3];
 			args[0] = new char[1]();
 			args[1] = new char[scriptName.size() + 1]();
 			args[2] = NULL;
@@ -203,14 +231,12 @@ namespace Webserv {
 			scriptName.copy(args[1], scriptName.size());
 			args[1][scriptName.size()] = 0; // TODO: this may be redundant
 
-			std::map<std::string, std::string> extraEnvs;
-			extraEnvs["PATH_INFO"] = extraPath.toString(false, true);
-			extraEnvs["QUERY_INFO"] = "";
-
-			char** newEnvp = setupEnvp(extraEnvs, envp);
+			// Construct new envp
 
 			chdir(scriptLocation.exceptLast().toString(false, true).c_str());
-			execve(binaryLocation.toString(false, true).c_str(), args, newEnvp);
+
+			Url finalBinaryLocation = binaryLocation.getSegments().empty()? scriptLocation : binaryLocation;
+			execve(finalBinaryLocation.toString(false, true).c_str(), args, newEnvp);
 
 			// TODO: the following may be redundant;
 			delete[] args[0];
@@ -232,6 +258,7 @@ namespace Webserv {
 		SharedPtr<CGIWriter> writer = new CGIWriter(writePipe[1]);
 		SharedPtr<CGIReader> reader = new CGIReader(conn, respHandler, forkResult, readPipe[0], MSG_BUF_SIZE);
 		reader->setWriter(writer);
+		writer->consumeFileData(request.getData());
 
 		return std::make_pair(writer, reader);
 	}

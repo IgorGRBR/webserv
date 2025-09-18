@@ -98,19 +98,26 @@ namespace Webserv {
 			}
 		}
 		if (!localFS && !query.empty()) {
-			result << "?";
-			bool first = true;
-			for (std::map<std::string, std::string>::const_iterator it = query.begin(); it != query.end(); it++) {
-				if (!first) {
-					result << "&";
-				}
-				first = false;
-				result << it->first << "=" << it->second;
-			}
+			result << "?" << queryToString();
 		}
 		return result.str();
 	}
 	
+	std::string Url::queryToString() const {
+		std::stringstream result;
+		bool first = true;
+		
+		for (std::map<std::string, std::string>::const_iterator it = query.begin(); it != query.end(); it++) {
+			if (!first) {
+				result << "&";
+			}
+			first = false;
+			result << it->first << "=" << it->second;
+		}
+
+		return result.str();
+	}
+
 	bool Url::operator==(const Url& other) const {
 		return absolute == other.absolute
 			&& port == other.port

@@ -67,6 +67,7 @@ namespace Webserv {
 			maybeInterpLocation.get(),
 			scriptLocation,
 			rest.tail(),
+			request,
 			sData.envp
 		);
 		if (maybePipeline.isError())

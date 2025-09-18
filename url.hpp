@@ -34,6 +34,8 @@ namespace Webserv {
 		// Converts the `Url` object to string.
 		std::string toString(bool headSlash = true, bool localFS = false) const;
 
+		std::string queryToString() const;
+
 		// Checks if two `Url` objects are equal.
 		bool operator==(const Url&) const;
 
