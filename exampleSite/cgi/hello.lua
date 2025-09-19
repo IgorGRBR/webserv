@@ -12,7 +12,7 @@ local paramsBlock = "Here are some parameters this script managed to retrieve:<b
 	-- .."Query table: "..tostring(cgilua.POST).."<br>"
 
 -- local postQueryStr = io.read("*a")
-local postQuery, err = cgi.parse("POST")
+local postQuery, err = cgi.parse("GET")
 
 if err then
 	cgi.header(500, {["Content-Type"] = "text/html"})

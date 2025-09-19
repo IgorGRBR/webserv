@@ -199,8 +199,8 @@ namespace Webserv {
 		// into the child subprocess.
 		std::map<std::string, std::string> extraEnvs;
 		extraEnvs["PATH_INFO"] = extraPath.toString(false, true);
-		extraEnvs["QUERY_STRING"] = extraPath.queryToString();
-		extraEnvs["CONTENT_LENGTH"] = request.getHeader("Content-Length").getOr("");
+		extraEnvs["QUERY_STRING"] = request.getPath().queryToString();
+		extraEnvs["CONTENT_LENGTH"] = request.getHeader("Content-Length").getOr("0");
 		extraEnvs["CONTENT_TYPE"] = request.getHeader("Content-Type").getOr("");
 		extraEnvs["SERVER_SOFTWARE"] = "webserv";
 		extraEnvs["REQUEST_METHOD"] = httpMethodName(request.getMethod());

@@ -45,6 +45,7 @@ namespace Webserv {
 			size_t questionMark = segment.find("?");
 			if (questionMark != segment.npos) {
 				std::string finalSegment = segment.substr(0, questionMark);
+				url.segments.push_back(finalSegment);
 				queryString = segment.substr(questionMark + 1, segment.size() - questionMark - 1);
 				break;
 			}
@@ -106,7 +107,7 @@ namespace Webserv {
 	std::string Url::queryToString() const {
 		std::stringstream result;
 		bool first = true;
-		
+
 		for (std::map<std::string, std::string>::const_iterator it = query.begin(); it != query.end(); it++) {
 			if (!first) {
 				result << "&";
