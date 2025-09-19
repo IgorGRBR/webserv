@@ -186,7 +186,7 @@ LocationResult parseLocationDirective(ParserContext &ctx) {
 				}
 				else if (sym == "allowCGI") {
 					location.allowCGI = true;
-        }
+        		}
 				else if (sym == "redirect") {
 					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
 					if (ctx.it->getTag() != Webserv::Token::SYMBOL) return Webserv::UNEXPECTED_TOKEN;
@@ -275,6 +275,16 @@ ServerResult parseServerDirective(ParserContext& ctx) {
 					uint maxSize;
 					s >> maxSize;
 					server.maxRequestSize = maxSize;
+				}
+				else if (sym == "errorPage") {
+					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
+					if (ctx.it->getTag() != Webserv::Token::SYMBOL) return Webserv::UNEXPECTED_TOKEN;
+					std::stringstream s(std::string(ctx.it->getSym()));
+					ushort errCode;
+					s >> errCode;
+					if (++ctx.it == ctx.end) return Webserv::UNEXPECTED_EOF;
+					if (ctx.it->getTag() != Webserv::Token::SYMBOL) return Webserv::UNEXPECTED_TOKEN;
+					server.errPages[errCode] = std::string(ctx.it->getSym());
 				}
 				else return Webserv::UNEXPECTED_SYMBOL;
 				break;

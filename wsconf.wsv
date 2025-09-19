@@ -3,6 +3,9 @@
 server (
 	listen 8080
 	maxRequestSize 1024
+	
+	errorPage 404 ./exampleSite/cool.txt
+
 	location /awesome (
 		root ./exampleSite/
 		return 200
@@ -10,6 +13,8 @@ server (
 		allowMethod POST
 		allowMethod GET
 		maxRequestSize 5
+		errorPage 404 ./test/cool.html
+		errorPage 500 ./test/awesome.html
 	)
 
 	location /awesome/thingy (

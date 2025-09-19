@@ -68,6 +68,8 @@ namespace Webserv {
 
 			// Max HTTP request message body of the server.
 			Option<uint> maxRequestSize;
+
+			std::map<ushort, std::string> errPages;
 		};
 
 		// List of servers.
