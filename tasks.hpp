@@ -55,6 +55,10 @@ namespace Webserv {
 		RequestHandler(const ServerData&, int);
 		Option<Error> sendError(FDTaskDispatcher&, Error);
 
+		//declarations for custom error pages
+		bool readErrorPageFromFile(const std::string& filePath, std::string& content);
+			std::string determineContentType(const std::string& filePath);
+
 		ServerData sData;
 		int clientSocketFd;
 		// Option<HTTPRequest> request;

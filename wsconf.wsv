@@ -1,7 +1,7 @@
 # This is a simple config file example
 
 server (
-	listen 8080
+	listen 8081
 	maxRequestSize 1024
 	
 	errorPage 404 ./exampleSite/cool.txt
@@ -13,8 +13,12 @@ server (
 		allowMethod POST
 		allowMethod GET
 		maxRequestSize 5
-		errorPage 404 ./test/cool.html
-		errorPage 500 ./test/awesome.html
+        errorPage 404 ./exampleSite/errors/404.html  # fix this path
+        errorPage 403 ./exampleSite/errors/403.html  # fix this path
+        errorPage 401 ./exampleSite/errors/401.html  # fix this path
+        errorPage 405 ./exampleSite/errors/405.html  # fix this path
+        errorPage 500 ./exampleSite/errors/500.html # fix this path
+
 	)
 
 	location /awesome/thingy (
