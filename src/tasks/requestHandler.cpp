@@ -24,7 +24,8 @@ RequestHandler::RequestHandler(const ServerData& sd, int cfd):
 	clientSocketFd(cfd),
 	reqBuilder(),
 	location(),
-	dataSizeLimit() {};
+	dataSizeLimit(),
+	chunked(false) {};
 
 Result<RequestHandler*, Error> RequestHandler::tryMake(int cfd, ServerData &data) {
 	RequestHandler* rHandler = new RequestHandler(data, cfd);
@@ -53,6 +54,16 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 	if (readResult == 0) {
 		// I have exactly zero clue why this happens, but this does happen occasionally when you
 		// go back a page in the browser.
+		if (reqBuilder.isChunked()) {
+			Option<Error> maybeError = finalize(dispatcher);
+			if (maybeError.isSome()) {
+				Error& err = maybeError.get();
+				if (err.tag == Error::SHUTDOWN_SIGNAL) {
+					return err;
+				}
+				SEND_ERROR(dispatcher, err);
+			}
+		}
 		return false;
 	}
 
@@ -91,7 +102,7 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 				SEND_ERROR(dispatcher, Error(Error::RESOURCE_NOT_FOUND));
 			}
 			Option<HTTPMethod> method = reqBuilder.getHTTPMethod();
-			if (method.isSome() && method.get() != GET) {
+			if (method.isSome() && method.get() != GET && !reqBuilder.isChunked()) {
 				Option<uint> maybeContLength = reqBuilder.getContentLength();
 				if (maybeContLength.isNone()) {
 					// TODO: replace with proper error code
@@ -113,43 +124,17 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 		if (dataSizeLimit.isSome()) {
 			uint limit = dataSizeLimit.get();
 			uint size = reqBuilder.getDataSize();
-			if (size < limit) {
+			if (size < limit || (reqBuilder.isChunked() && !reqBuilder.chunkedReadFinished())) {
 				// Do nothing?
 				return true;
 			}
-			else if (size == limit) {
-				Result<UniquePtr<HTTPRequest>, Error> maybeRequest = reqBuilder.build();
-				if (maybeRequest.isError()) {
-					SEND_ERROR(dispatcher, maybeRequest.getError());
-				}
-
-				UniquePtr<HTTPRequest> request = maybeRequest.getValue();
-				if (false) { // TODO: chunked check
-					dispatcher.registerTask(new ChunkReader(sData, clientSocketFd, 
-						location.get().location->maxRequestSize.getOr(sData.maxRequestSize)));
-					return false;
-				}
-	
-				if (request->getData() == "close") {
-					return Error(Error::SHUTDOWN_SIGNAL);
-				}
-				else {
-					Result<SharedPtr<IFDTask>, Error> nextTask = handleRequest(
-						request.ref(),
-						location.get(),
-						sData,
-						clientSocketFd
-					);
-					if (nextTask.isError()) {
-						SEND_ERROR(dispatcher, nextTask.getError());
+			else if (size == limit || (reqBuilder.isChunked() && reqBuilder.chunkedReadFinished())) {
+				Option<Error> maybeError = finalize(dispatcher);
+				if (maybeError.isSome()) {
+					if (maybeError.get().tag == Error::SHUTDOWN_SIGNAL) {
+						return maybeError.get();
 					}
-					dispatcher.registerTask(nextTask.getValue());
-					Option<SharedPtr<CGIReader> > maybeReader = nextTask.getValue().tryAs<CGIReader>();
-					if (maybeReader.isSome()) {
-						dispatcher.registerTask(maybeReader.get()->getResponseHandler().tryAs<IFDTask>().get());
-						if (maybeReader.get()->getWriter().isSome())
-							dispatcher.registerTask(maybeReader.get()->getWriter().get().tryAs<IFDTask>().get());
-					}
+					SEND_ERROR(dispatcher, maybeError.get());
 				}
 				return false;
 			}
@@ -159,6 +144,13 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 			}
 		}
 		break;
+		// case HTTPRequest::Builder::CHUNKED_READ_COMPLETE:
+		// 	Option<Error> maybeError = finalize(dispatcher);
+		// 	if (maybeError.isSome()) {
+		// 		SEND_ERROR(dispatcher, maybeError.get());
+		// 	}
+		// 	return false;
+		// break;
 	}
 	return false;
 }
@@ -178,6 +170,38 @@ Option<Error> RequestHandler::sendError(FDTaskDispatcher& dispatcher, Error erro
 		return maybeRespTask.getError();
 	}
 	dispatcher.registerTask(maybeRespTask.getValue());
+	return NONE;
+}
+
+Option<Error> RequestHandler::finalize(Webserv::FDTaskDispatcher& dispatcher) {
+	Result<UniquePtr<HTTPRequest>, Error> maybeRequest = reqBuilder.build();
+	if (maybeRequest.isError()) {
+		return maybeRequest.getError();
+	}
+
+	UniquePtr<HTTPRequest> request = maybeRequest.getValue();
+
+	if (request->getData() == "close") {
+		return Error(Error::SHUTDOWN_SIGNAL);
+	}
+	else {
+		Result<SharedPtr<IFDTask>, Error> nextTask = handleRequest(
+			request.ref(),
+			location.get(),
+			sData,
+			clientSocketFd
+		);
+		if (nextTask.isError()) {
+			return nextTask.getError();
+		}
+		dispatcher.registerTask(nextTask.getValue());
+		Option<SharedPtr<CGIReader> > maybeReader = nextTask.getValue().tryAs<CGIReader>();
+		if (maybeReader.isSome()) {
+			dispatcher.registerTask(maybeReader.get()->getResponseHandler().tryAs<IFDTask>().get());
+			if (maybeReader.get()->getWriter().isSome())
+				dispatcher.registerTask(maybeReader.get()->getWriter().get().tryAs<IFDTask>().get());
+		}
+	}
 	return NONE;
 }
 

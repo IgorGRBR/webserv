@@ -7,24 +7,34 @@
 #include <unistd.h>
 #include <sstream>
 
+#define SEND_ERROR(dispatcher, errorObj) { \
+		Option<Error> critical = sendError(dispatcher, errorObj); \
+		if (critical.isSome()) return critical.get(); \
+		return false; \
+	} \
+
 namespace Webserv {
-	ChunkReader::ChunkReader(ServerData sd, int fd, uint limit):
+	ChunkReader::ChunkReader(ServerData sd, int fd, uint limit, HTTPRequest& req, LocationTreeNode::LocationSearchResult& loc):
 		sData(sd),
 		clientSocketFd(fd),
 		lines(),
 		specifiedSize(),
 		sizeLimit(limit),
-		size(0) {
-			(void)sizeLimit;
-		};
+		size(0),
+		request(req),
+		location(loc)
+	{
+		(void)sizeLimit;
+	};
 
 	Result<bool, Error> ChunkReader::runTask(FDTaskDispatcher& dispatcher) {
 		(void)dispatcher;
 		char buffer[MSG_BUF_SIZE + 1] = {0};
 		long readResult = read(clientSocketFd, (void*)buffer, sData.maxRequestSize);
 	
-		if (readResult == sData.maxRequestSize && buffer[readResult] != '\0') {
-			return Error(Error::GENERIC_ERROR, "Read result was larger than allowed.");
+		if (readResult == 0) {
+			finalize(dispatcher);
+			return false;
 		}
 
 		std::string chunkStr = std::string(buffer);
@@ -59,9 +69,9 @@ namespace Webserv {
 				for (uint i = 0; i < lines.size(); i++) {
 					dataStream << lines[i];
 				}
-
+#ifdef DEBUG
 				std::cout << "Received a chunk: " << dataStream.str() << std::endl;
-
+#endif
 				return true;
 			}
 			else {
@@ -121,4 +131,35 @@ namespace Webserv {
 		return NONE;
 	}
 
+	Option<Error> ChunkReader::finalize(FDTaskDispatcher& dispatcher) {
+		std::stringstream dataStream;
+		for (std::vector<std::string>::iterator it = lines.begin(); it != lines.end(); it++) {
+			dataStream << *it;
+		}
+		HTTPRequest newRequest = request.withData(dataStream.str());
+
+		// TODO: the following code was duplicated from `requestHandler.cpp`. Maybe move it to
+		// `request.cpp`?
+		Result<SharedPtr<IFDTask>, Error> nextTask = handleRequest(
+			request,
+			location,
+			sData,
+			clientSocketFd
+		);
+
+		if (nextTask.isError()) {
+			Option<Error> critical = sendError(dispatcher, nextTask.getError());
+			if (critical.isSome()) return critical.get();
+			return NONE;
+		}
+
+		dispatcher.registerTask(nextTask.getValue());
+		Option<SharedPtr<CGIReader> > maybeReader = nextTask.getValue().tryAs<CGIReader>();
+		if (maybeReader.isSome()) {
+			dispatcher.registerTask(maybeReader.get()->getResponseHandler().tryAs<IFDTask>().get());
+			if (maybeReader.get()->getWriter().isSome())
+				dispatcher.registerTask(maybeReader.get()->getWriter().get().tryAs<IFDTask>().get());
+		}
+		return NONE;
+	}
 }

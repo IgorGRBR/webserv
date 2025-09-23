@@ -74,14 +74,6 @@ namespace Webserv {
 			return maybePipeline.getError();
 
 		std::string cgiStdinData;
-		// if (request.isForm()) {
-		// 	Result<Form, Error> maybeForm = Form::fromRequest(request);
-		// 	if (maybeForm.isError()) return maybeForm.getError();
-		// 	const Form& form = maybeForm.getValue();
-		// 	// cgiStdinData = form.toCGIString();
-		// }
-		// else {
-		// }
 		cgiStdinData = request.toString();
 
 		CGIPipeline& pipeline = maybePipeline.getValue();
@@ -282,7 +274,7 @@ namespace Webserv {
 		}
 
 		if (fileContent.isSome()) {
-			HTTPResponse resp = HTTPResponse(Url());
+			HTTPResponse resp = HTTPResponse(Url(), HTTP_OK);
 			resp.setData(fileContent.get());
 			resp.setContentType(contentTypeString(contentType));
 			

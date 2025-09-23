@@ -195,21 +195,6 @@ namespace Webserv {
 			return Error(Error::GENERIC_ERROR, "Pipe error");
 		}
 
-		// TODO: I'll keep this here for debugging purposes, but it should really be moved
-		// into the child subprocess.
-		std::map<std::string, std::string> extraEnvs;
-		extraEnvs["PATH_INFO"] = extraPath.toString(false, true);
-		extraEnvs["QUERY_STRING"] = request.getPath().queryToString();
-		extraEnvs["CONTENT_LENGTH"] = request.getHeader("Content-Length").getOr("0");
-		extraEnvs["CONTENT_TYPE"] = request.getHeader("Content-Type").getOr("");
-		extraEnvs["SERVER_SOFTWARE"] = "webserv";
-		extraEnvs["REQUEST_METHOD"] = httpMethodName(request.getMethod());
-		Option<std::string> pwd = getPwd(envp);
-		if (pwd.isSome()) {
-			extraEnvs["PATH_TRANSLATED"] = pwd.get() + scriptLocation.toString(true, true);
-		}
-		char** newEnvp = setupEnvp(extraEnvs, envp);
-
 		int forkResult = fork();
 		if (forkResult == 0) {
 			dup2(writePipe[0], STDIN_FILENO);
@@ -232,6 +217,18 @@ namespace Webserv {
 			args[1][scriptName.size()] = 0; // TODO: this may be redundant
 
 			// Construct new envp
+			std::map<std::string, std::string> extraEnvs;
+			extraEnvs["PATH_INFO"] = extraPath.toString(false, true);
+			extraEnvs["QUERY_STRING"] = request.getPath().queryToString();
+			extraEnvs["CONTENT_LENGTH"] = request.getHeader("Content-Length").getOr("0");
+			extraEnvs["CONTENT_TYPE"] = request.getHeader("Content-Type").getOr("");
+			extraEnvs["SERVER_SOFTWARE"] = "webserv";
+			extraEnvs["REQUEST_METHOD"] = httpMethodName(request.getMethod());
+			Option<std::string> pwd = getPwd(envp);
+			if (pwd.isSome()) {
+				extraEnvs["PATH_TRANSLATED"] = pwd.get() + scriptLocation.toString(true, true);
+			}
+			char** newEnvp = setupEnvp(extraEnvs, envp);
 
 			chdir(scriptLocation.exceptLast().toString(false, true).c_str());
 
