@@ -24,27 +24,6 @@ namespace Webserv {
 		int socketFd;
 	};
 
-	class ChunkReader: public IFDTask {
-	public:
-		ChunkReader(ServerData, int, uint, HTTPRequest&, LocationTreeNode::LocationSearchResult&);
-		Result<bool, Error> runTask(FDTaskDispatcher&);
-		int getDescriptor() const;
-		IOMode getIOMode() const;
-	private:
-		Option<Error> sendError(FDTaskDispatcher&, Error);
-		Option<Error> parseSize(FDTaskDispatcher& dispatcher);
-		Option<Error> finalize(FDTaskDispatcher&);
-		
-		ServerData sData;
-		int clientSocketFd;
-		std::vector<std::string> lines;
-		Option<uint> specifiedSize;
-		uint sizeLimit;
-		uint size;
-		HTTPRequest request;
-		LocationTreeNode::LocationSearchResult location;
-	};
-
 	// `RequestHandler` is a task that reads the HTTP request contents from its file descriptor, parses it,
 	// handles the requests and produces a response handler.
 	class RequestHandler: public IFDTask {
