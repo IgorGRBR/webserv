@@ -38,6 +38,10 @@ namespace Webserv {
 		Option<Error> sendError(FDTaskDispatcher&, Error);
 		Option<Error> finalize(FDTaskDispatcher&);
 
+		//declarations for custom error pages
+		bool readErrorPageFromFile(const std::string& filePath, std::string& content);
+			std::string determineContentType(const std::string& filePath);
+
 		ServerData sData;
 		int clientSocketFd;
 		HTTPRequest::Builder reqBuilder;

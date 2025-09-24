@@ -7,6 +7,10 @@
 #include "ystl.hpp"
 #include <unistd.h>
 #include "tasks.hpp"
+#include <fstream>
+#include <string>
+#include <cctype>  // for tolower
+
 
 #define SEND_ERROR(dispatcher, errorObj) { \
 		Option<Error> critical = sendError(dispatcher, errorObj); \
@@ -157,20 +161,104 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 
 // TODO: this code has been duplicated from `chunkReader.cpp`. Extracting it into a separate function is a good idea.
 Option<Error> RequestHandler::sendError(FDTaskDispatcher& dispatcher, Error error) {
-	ConnectionInfo conn;
-	conn.connectionFd = clientSocketFd;
+    ConnectionInfo conn;
+    conn.connectionFd = clientSocketFd;
 
-	HTTPResponse resp = HTTPResponse(Url());
-	resp.setCode(error.getHTTPCode());
-	resp.setData(makeErrorPage(error));
-	resp.setContentType(contentTypeString(HTML));
+    HTTPResponse resp = HTTPResponse(Url());
+    resp.setCode(error.getHTTPCode());
 
-	Result<ResponseHandler*, Error> maybeRespTask = ResponseHandler::tryMake(conn, resp);
-	if (maybeRespTask.isError()) {
-		return maybeRespTask.getError();
+    std::string errorPageContent;
+    bool customPageFound = false;
+    std::string errorPagePath;
+
+    // Check location-specific error pages first
+    if (location.isSome()) {
+        const std::map<ushort, std::string>& locErrPages = location.get().location->errPages;
+        std::map<ushort, std::string>::const_iterator it = locErrPages.find(error.getHTTPCode());
+        if (it != locErrPages.end()) {
+            errorPagePath = it->second;
+        }
+    }
+
+    // If no location error page found, check server-level error pages
+    if (errorPagePath.empty()) {
+        std::map<ushort, std::string>::const_iterator sit = sData.config.errPages.find(error.getHTTPCode());
+        if (sit != sData.config.errPages.end()) {
+            errorPagePath = sit->second;
+        }
+    }
+
+    // Attempt to read custom error page file
+    if (!errorPagePath.empty()) {
+        if (readErrorPageFromFile(errorPagePath, errorPageContent)) {
+            customPageFound = true;
+        }
+#ifdef DEBUG
+        else {
+            std::cerr << "Failed to read custom error page file: " << errorPagePath << std::endl;
+        }
+#endif
+    }
+
+    if (customPageFound) {
+        resp.setData(errorPageContent);
+        resp.setContentType(determineContentType(errorPagePath));
+    } else {
+        resp.setData(makeErrorPage(error));
+        resp.setContentType(contentTypeString(HTML));
+    }
+
+    Result<ResponseHandler*, Error> maybeRespTask =
+        ResponseHandler::tryMake(conn, resp);
+    if (maybeRespTask.isError()) {
+        return maybeRespTask.getError();
+    }
+    dispatcher.registerTask(maybeRespTask.getValue());
+    return NONE;
+}
+
+
+bool RequestHandler::readErrorPageFromFile(const std::string& filePath, std::string& content) {
+    std::ifstream file(filePath.c_str());
+    if (!file.is_open()) {
+#ifdef DEBUG
+        std::cerr << "Failed to open error page file: " << filePath << std::endl;
+#endif
+        return false;
+    }
+
+    std::string line;
+    content.clear();
+    while (std::getline(file, line)) {
+        content += line + "\n";
+    }
+
+    file.close();
+    return !content.empty();
+}
+
+
+std::string RequestHandler::determineContentType(const std::string& filePath) {
+    // Find last dot for extension
+    size_t dotPos = filePath.rfind('.');
+    if (dotPos == std::string::npos) {
+        return contentTypeString(HTML); // Default to HTML if no extension
+    }
+
+    std::string ext = filePath.substr(dotPos + 1);
+    // Convert extension to lowercase (manual C++98 style)
+    for (size_t i = 0; i < ext.size(); ++i) {
+        ext[i] = (char)tolower(ext[i]);
+    }
+
+	if (ext == "html" || ext == "htm") {
+    	return contentTypeString(HTML);
+	} else if (ext == "txt") {
+    	return "text/plain";  // Directly return plain text MIME type string here
+	} else {
+   	 return contentTypeString(HTML); // Default fallback
 	}
-	dispatcher.registerTask(maybeRespTask.getValue());
-	return NONE;
+
 }
 
 Option<Error> RequestHandler::finalize(Webserv::FDTaskDispatcher& dispatcher) {
