@@ -266,7 +266,7 @@ Option<Webserv::HTTPResponse> HTTPResponse::fromString(const std::string& text) 
 			break;
 		}
 
-		// Parse a header
+		// Parse a header.
 		std::string word;
 		std::stringstream wordStream(line);
 		if (!std::getline(wordStream, word, ':')) {
@@ -282,10 +282,42 @@ Option<Webserv::HTTPResponse> HTTPResponse::fromString(const std::string& text) 
 		response.headers[paramName] = paramValue;
 	}
 
-	// Now read the data segment if it is present
+	// Now read the data segment if it is present.
 	if (!emptyLine) return NONE;
 	std::getline(s, line, '\0');
-	response.data = line;
+
+	// If response is chunked, unchunk it, and change the encoding.
+	if (response.headers.find("Transfer-Encoding") != response.headers.end()
+	&& response.headers["Transfer-Encoding"] == "chunked") {
+		std::stringstream respStream;
+		std::stringstream chunkedStream(line);
+
+		while (true) {
+			std::string numberLine;
+			if (!std::getline(chunkedStream, numberLine)) {
+				return NONE;
+			}
+			Option<int> maybeChunkSize = strToInt(trimString(numberLine, '\r'));
+			if (maybeChunkSize.isNone()) {
+				return NONE;
+			}
+			int chunkSize = maybeChunkSize.get();
+			if (chunkSize == 0) break;
+			std::string chunk(chunkSize + 1, '\0');
+			chunkedStream.read(&chunk[0], chunkSize);
+			chunkedStream.ignore(1); // Ignore the newline
+			respStream << chunk;
+		}
+
+		response.data = respStream.str();
+		response.headers.erase("Transfer-Encoding");
+		std::stringstream contentSize;
+		contentSize << response.data.size();
+		response.headers["Content-Length"] = contentSize.str();
+	}
+	else {
+		response.data = line;
+	}
 
 	return response;
 }

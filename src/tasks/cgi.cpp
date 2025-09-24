@@ -48,7 +48,6 @@ namespace Webserv {
 				writer.get()->close();
 			}
 
-			// TODO: move the exit code check here.
 			int wstatus;
 			// No WNOHANG, because otherwise we will never be able to determine if it finishes running.
 			int waitResult = waitpid(pid, &wstatus, 0);
