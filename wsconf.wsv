@@ -47,7 +47,7 @@ server (
 		allowMethod GET
 		allowMethod POST
 		allowCGI
-  )
+	)
   
 	location /awesome/redirect (
 		redirect http://www.google.com

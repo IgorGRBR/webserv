@@ -24,24 +24,6 @@ namespace Webserv {
 		int socketFd;
 	};
 
-	class ChunkReader: public IFDTask {
-	public:
-		ChunkReader(ServerData, int, uint);
-		Result<bool, Error> runTask(FDTaskDispatcher&);
-		int getDescriptor() const;
-		IOMode getIOMode() const;
-	private:
-		Option<Error> sendError(FDTaskDispatcher&, Error);
-		Option<Error> parseSize(FDTaskDispatcher& dispatcher);
-		
-		ServerData sData;
-		int clientSocketFd;
-		std::vector<std::string> lines;
-		Option<uint> specifiedSize;
-		uint sizeLimit;
-		uint size;
-	};
-
 	// `RequestHandler` is a task that reads the HTTP request contents from its file descriptor, parses it,
 	// handles the requests and produces a response handler.
 	class RequestHandler: public IFDTask {
@@ -54,6 +36,7 @@ namespace Webserv {
 	private:
 		RequestHandler(const ServerData&, int);
 		Option<Error> sendError(FDTaskDispatcher&, Error);
+		Option<Error> finalize(FDTaskDispatcher&);
 
 		//declarations for custom error pages
 		bool readErrorPageFromFile(const std::string& filePath, std::string& content);
@@ -61,17 +44,16 @@ namespace Webserv {
 
 		ServerData sData;
 		int clientSocketFd;
-		// Option<HTTPRequest> request;
 		HTTPRequest::Builder reqBuilder;
 		Option<LocationTreeNode::LocationSearchResult> location;
 		Option<uint> dataSizeLimit;
+		bool chunked;
 	};
 
 	// `ResponseHandler` is a task that is responsible for building a HTTP response and sending it back to the client.
 	class ResponseHandler: public IFDTask {
 	public:
 		static Result<ResponseHandler*, Error> tryMake(ConnectionInfo&, const HTTPResponse&);
-		// static Result<ResponseHandler*, Error> tryMakeErrorPage(ServerData&, ConnectionInfo&, Error);
 		Result<bool, Error> runTask(FDTaskDispatcher&);
 		int getDescriptor() const;
 		IOMode getIOMode() const;
@@ -81,13 +63,7 @@ namespace Webserv {
 	private:
 		ResponseHandler(ConnectionInfo&, const HTTPResponse&);
 
-		// bool ready;
-		// ServerData sData;
 		ConnectionInfo conn;
-		// std::string responseData;
-		// HTTPReturnCode responseCode;
-		// HTTPContentType contentType;
-		// std::map<std::string, std::string> extraHeaders;
 		Option<HTTPResponse> response;
 	};
 
@@ -111,7 +87,6 @@ namespace Webserv {
 
 	class CGIReader: public IFDTask {
 	public:
-		// static Result<UniquePtr<CGIReader>, Error> tryMake(int fd, uint bufSize);
 		CGIReader(
 			ConnectionInfo conn,
 			const SharedPtr<ResponseHandler>& resp,
@@ -127,8 +102,6 @@ namespace Webserv {
 		void setWriter(const SharedPtr<CGIWriter> wPtr);
 		Option<SharedPtr<CGIWriter> > getWriter();
 		SharedPtr<ResponseHandler> getResponseHandler();
-		// void onProcessExit(FDTaskDispatcher&);
-		// int getPID() const;
 	private:
 		int fd;
 		int pid;

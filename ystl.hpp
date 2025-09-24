@@ -79,6 +79,20 @@ struct Option {
 		return *this;
 	}
 
+	bool operator==(const T& other) {
+		if (present) {
+			return get() == other;
+		}
+		return false;
+	}
+
+	bool operator!=(const T& other) {
+		if (present) {
+			return get() != other;
+		}
+		return true;
+	}
+
 	~Option() {
 		if (present) destructValue();
 	}

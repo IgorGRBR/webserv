@@ -6,6 +6,7 @@
 #include <map>
 #include <ostream>
 #include <string>
+
 namespace Webserv {
 
 	// This represents the method of HTTP message.
@@ -52,11 +53,20 @@ namespace Webserv {
 			Option<uint> getContentLength() const;
 			Option<HTTPMethod> getHTTPMethod() const;
 			Option<std::string> getHost() const;
+			Option<std::string> getHeader(const std::string&) const;
+			bool isChunked() const;
+			bool chunkedReadFinished() const;
 		private:
+			Result<State, Error> readChunk(const std::string&);
+
 			uint dataSize;
 			std::vector<std::string> lines;
 			State internalState;
 			UniquePtr<HTTPRequest> request;
+			bool chunked;
+			std::string chunkReadLeftover;
+			uint chunkSizeLeftover;
+			bool chunkedReadComplete;
 		};
 
 		// Attempts to construct a `HTTPRequest` instance from provided text.
@@ -78,6 +88,10 @@ namespace Webserv {
 		bool isForm() const;
 
 		std::string toString() const;
+
+		HTTPRequest withData(const std::string&) const;
+
+		Option<HTTPRequest> unchunked() const;
 	private:
 		// It's here so you can't construct an empty HTTPRequest.
 		void setData(const std::string&);

@@ -187,6 +187,41 @@ std::string Webserv::HTTPRequest::toString() const {
 	return result.str();
 }
 
+
+HTTPRequest HTTPRequest::withData(const std::string& dataStr) const {
+	HTTPRequest result(*this);
+	result.data = dataStr;
+	return result;
+}
+
+Option<HTTPRequest> Webserv::HTTPRequest::unchunked() const {
+	std::stringstream chunkedStream(data);
+	std::stringstream unchunkedStream;
+
+	std::string line;
+	std::getline(chunkedStream, line);
+	line = trimString(line, '\r');
+	Option<uint> length = hexStrToUInt(line);
+	while (length.isSome() && length != 0) {
+		std::string chunk(length.get(), '\0');
+		chunkedStream.read(&chunk[0], length.get());
+		unchunkedStream << chunk;
+		std::getline(chunkedStream, line);
+		line = trimString(line, '\r');
+		length = hexStrToUInt(line);
+	}
+	if (length.isNone()) return NONE;
+
+	std::string unchunkedString = unchunkedStream.str();
+	HTTPRequest result = withData(unchunkedString);
+
+	std::stringstream lengthNum;
+	lengthNum << unchunkedString.size();
+	result.headers["Content-Length"] = lengthNum.str();
+
+	return result;
+}
+
 HTTPResponse::HTTPResponse(Webserv::Url uri, ReturnCode retCode): resourcePath(uri), retCode(retCode), headers() {
 	headers["Content-Type"] = "text/html";
 }
@@ -231,7 +266,7 @@ Option<Webserv::HTTPResponse> HTTPResponse::fromString(const std::string& text) 
 			break;
 		}
 
-		// Parse a header
+		// Parse a header.
 		std::string word;
 		std::stringstream wordStream(line);
 		if (!std::getline(wordStream, word, ':')) {
@@ -247,10 +282,42 @@ Option<Webserv::HTTPResponse> HTTPResponse::fromString(const std::string& text) 
 		response.headers[paramName] = paramValue;
 	}
 
-	// Now read the data segment if it is present
+	// Now read the data segment if it is present.
 	if (!emptyLine) return NONE;
 	std::getline(s, line, '\0');
-	response.data = line;
+
+	// If response is chunked, unchunk it, and change the encoding.
+	if (response.headers.find("Transfer-Encoding") != response.headers.end()
+	&& response.headers["Transfer-Encoding"] == "chunked") {
+		std::stringstream respStream;
+		std::stringstream chunkedStream(line);
+
+		while (true) {
+			std::string numberLine;
+			if (!std::getline(chunkedStream, numberLine)) {
+				return NONE;
+			}
+			Option<int> maybeChunkSize = strToInt(trimString(numberLine, '\r'));
+			if (maybeChunkSize.isNone()) {
+				return NONE;
+			}
+			int chunkSize = maybeChunkSize.get();
+			if (chunkSize == 0) break;
+			std::string chunk(chunkSize + 1, '\0');
+			chunkedStream.read(&chunk[0], chunkSize);
+			chunkedStream.ignore(1); // Ignore the newline
+			respStream << chunk;
+		}
+
+		response.data = respStream.str();
+		response.headers.erase("Transfer-Encoding");
+		std::stringstream contentSize;
+		contentSize << response.data.size();
+		response.headers["Content-Length"] = contentSize.str();
+	}
+	else {
+		response.data = line;
+	}
 
 	return response;
 }
@@ -416,7 +483,12 @@ std::string HTTPResponse::build() const {
 
 	result << data;
 
-	return result.str();
+	std::string fuck = result.str();
+
+	std::cout << "Returning this: " << fuck << std::endl;
+
+	return fuck;
+	// return result.str();
 }
 
 std::string Webserv::contentTypeString(HTTPContentType cType) {
@@ -479,7 +551,13 @@ typedef Webserv::HTTPRequest::Builder Builder;
 Builder::Builder():
 	// This absolute BS language will yell at you for leaving complex data types in templates uninitialized,
 	// yet will happily let you slip through an uninitialized enum. Fantastic.
-	lines(), internalState(INITIAL) {};
+	lines(),
+	internalState(INITIAL),
+	chunked(false),
+	chunkReadLeftover(),
+	chunkSizeLeftover(),
+	chunkedReadComplete(false)
+	{};
 
 Result<Builder::State, Webserv::Error> Builder::appendData(const std::string& str) {
 	bool headerComplete = false;
@@ -502,8 +580,10 @@ Result<Builder::State, Webserv::Error> Builder::appendData(const std::string& st
 			}
 			break;
 		case HEADER_COMPLETE:
-			lines.push_back(str);
-			dataSize += str.size();
+			if (!chunked) {
+				lines.push_back(str);
+				dataSize += str.size();
+			}
 			break;
 		}
 
@@ -518,8 +598,7 @@ Result<Builder::State, Webserv::Error> Builder::appendData(const std::string& st
 		std::string headerStr = collectedDataString.substr(0, doubleNlPos + 4);
 
 		std::string rest = collectedDataString.substr(doubleNlPos + 4, collectedDataString.size() - doubleNlPos);
-		lines.clear();
-		lines.push_back(rest);
+		// lines.clear();
 		dataSize = rest.size();
 
 		HTTPRequest* reqPtr = new HTTPRequest();
@@ -529,9 +608,54 @@ Result<Builder::State, Webserv::Error> Builder::appendData(const std::string& st
 		}
 		*reqPtr = maybeRequest.getValue();
 		request = reqPtr;
+		chunked = request->getHeader("Transfer-Encoding") == "chunked";
+		
+		lines.clear();
+		if (chunked) {
+			return readChunk(rest);
+		}
+		else {
+			lines.push_back(rest);
+		}
+	}
+
+	if (chunked) {
+		return readChunk(str);
 	}
 
 	return internalState;
+}
+
+Result<Builder::State, Webserv::Error> Builder::readChunk(const std::string& str) {
+	std::string chunk = chunkReadLeftover + str;
+	uint chunkEnd = 0;
+	while (true) {
+		size_t nlPos = chunk.find("\r\n", chunkEnd);
+		if (nlPos != chunk.npos) {
+			Option<uint> maybeSize = hexStrToUInt(chunk.substr(chunkEnd, nlPos - chunkEnd));
+			// TODO: proper error tag
+			if (maybeSize.isNone()) return Error(Error::GENERIC_ERROR, "Chunk size reading error");
+			if (maybeSize == 0) {
+				chunkedReadComplete = true;
+				return HEADER_COMPLETE;
+			};
+			std::string data = chunk.substr(nlPos + 2, maybeSize.get());
+			if (data.size() < maybeSize.get()) {
+				chunkReadLeftover = data;
+				chunkSizeLeftover = maybeSize.get() - data.size();
+				break;
+			}
+			else {
+				lines.push_back(data);
+			}
+			chunkEnd = nlPos + maybeSize.get() + 4;
+		}
+		else {
+			chunkReadLeftover = chunk;
+			break;
+		}
+	}
+	return HEADER_COMPLETE;
 }
 
 Option<Webserv::Url> Builder::getHeaderPath() const {
@@ -566,11 +690,36 @@ uint Builder::getDataSize() const {
 	return dataSize;
 }
 
+// I should have written this thing ages ago...
+Option<std::string> Builder::getHeader(const std::string& key) const {
+	if (request.isMoved())
+		return NONE;
+	else
+	 	return request->getHeader(key);
+}
+
+bool Builder::isChunked() const {
+	return chunked;
+}
+
+bool Builder::chunkedReadFinished() const {
+	return chunkedReadComplete;
+}
+
 Result<UniquePtr<Webserv::HTTPRequest>, Webserv::Error> Builder::build() {
 	std::stringstream collectedDataStream;
 	for (uint i = 0; i < lines.size(); i++) {
 		collectedDataStream << lines[i];
 	}
 	request->setData(collectedDataStream.str());
+	// if (chunked) {
+	// 	Option<HTTPRequest> unchunked = request->unchunked();
+	// 	if (unchunked.isNone()) {
+	// 		// TODO: replace with proper error code
+	// 		return Error(Error::GENERIC_ERROR, "Could not unchunk the request");
+	// 	}
+	// 	delete request.move();
+	// 	request = new HTTPRequest(unchunked.get());
+	// }
 	return request;
 }
