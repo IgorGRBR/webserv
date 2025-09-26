@@ -131,6 +131,7 @@ namespace Webserv {
 			return handleCGI(clientSocketFd, rootUrl, tail, location, request, sData);
 		}
 
+		// TODO: move file uploads in a separate function
 		if (tail.getSegments().empty()
 		&& request.getMethod() == POST
 		&& location.fileUploadFieldId.isSome()) {
@@ -223,6 +224,10 @@ namespace Webserv {
 				// 4.2) Write the file content
 				uploadFile << fileContent;
 			}
+		}
+
+		if (request.getMethod() == DELETE) {
+			// TODO: delete the file
 		}
 
 		Url respFileUrl = rootUrl + tail;

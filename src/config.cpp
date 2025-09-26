@@ -83,15 +83,6 @@ void tokenizeLine(std::vector<Token>& tokens, std::string& line, char& stringSta
 			else {
 				symBuf.push_back(*c);
 			}
-
-			// if (*c == '(' || *c == ')') tokens.push_back(Token(*c));
-			// else if (!std::isspace(*c)) symBuf.push_back(*c);
-	
-			// if ((*c == '(' || *c == ')' || std::isspace(*c))) {
-			// 	if (*c == '(') tokens.push_back(Token(*c));
-			// 	tokens.push_back(Token(symBuf));
-			// 	symBuf = std::string();
-			// }
 		}
 		c++;
 	}
