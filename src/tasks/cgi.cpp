@@ -218,6 +218,7 @@ namespace Webserv {
 			// Construct new envp
 			std::map<std::string, std::string> extraEnvs;
 			extraEnvs["PATH_INFO"] = extraPath.toString(false, true);
+			extraEnvs["HTTP_COOKIE"] = request.getHeader("Cookie").getOr("");
 			extraEnvs["QUERY_STRING"] = request.getPath().queryToString();
 			extraEnvs["CONTENT_LENGTH"] = request.getHeader("Content-Length").getOr("0");
 			extraEnvs["CONTENT_TYPE"] = request.getHeader("Content-Type").getOr("");
