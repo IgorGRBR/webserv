@@ -24,6 +24,7 @@ typedef Webserv::Config::Server::Location Location;
 typedef Webserv::RequestHandler RequestHandler;
 
 RequestHandler::RequestHandler(const ServerData& sd, int cfd):
+	IFDTask(cfd, READ_MODE),
 	sData(sd),
 	clientSocketFd(cfd),
 	reqBuilder(),
@@ -39,13 +40,13 @@ Result<RequestHandler*, Error> RequestHandler::tryMake(int cfd, ServerData &data
 	return rHandler;
 }
 
-int RequestHandler::getDescriptor() const {
-	return clientSocketFd;
-}
+// int RequestHandler::getDescriptor() const {
+// 	return clientSocketFd;
+// }
 
-Webserv::IOMode RequestHandler::getIOMode() const {
-	return READ_MODE;
-}
+// Webserv::IOMode RequestHandler::getIOMode() const {
+// 	return READ_MODE;
+// }
 
 Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 	char buffer[MSG_BUF_SIZE + 1] = {0};

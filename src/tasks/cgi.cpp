@@ -20,7 +20,7 @@ namespace Webserv {
 		int fd,
 		uint rSize
 	):
-		fd(fd), pid(pid), readSize(rSize), writer(NONE), responseHandler(resp), connectionInfo(conn) {}
+		IFDTask(fd, READ_MODE), fd(fd), pid(pid), readSize(rSize), writer(NONE), responseHandler(resp), connectionInfo(conn) {}
 
 	void CGIReader::setWriter(const SharedPtr<CGIWriter> wPtr) {
 		writer = wPtr;
@@ -87,19 +87,19 @@ namespace Webserv {
 		return true;
 	}
 
-	int CGIReader::getDescriptor() const {
-		return fd;
-	}
+	// int CGIReader::getDescriptor() const {
+	// 	return fd;
+	// }
 
-	IOMode CGIReader::getIOMode() const {
-		return READ_MODE;
-	}
+	// IOMode CGIReader::getIOMode() const {
+	// 	return READ_MODE;
+	// }
 
 	Option<SharedPtr<CGIWriter> > CGIReader::getWriter() {
 		return writer;
 	}
 
-	CGIWriter::CGIWriter(int fd, bool cont): fd(fd), continuous(cont), closed(false) {
+	CGIWriter::CGIWriter(int fd, bool cont): IFDTask(fd, WRITE_MODE), fd(fd), continuous(cont), closed(false) {
 		std::cout << "CGIWriter: " << fd << std::endl;
 	}
 

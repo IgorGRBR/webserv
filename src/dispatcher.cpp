@@ -20,6 +20,8 @@ typedef Webserv::FDTaskDispatcher FDTaskDispatcher;
 typedef Webserv::IFDTask IFDTask;
 typedef Webserv::IFDConsumer IFDConsumer;
 
+IFDTask::IFDTask(int fd, IOMode iom): fileDescriptor(fd), ioMode(iom) {};
+
 IFDTask::~IFDTask() {}
 
 IFDConsumer::~IFDConsumer() {}
@@ -50,7 +52,7 @@ FDTaskDispatcher::~FDTaskDispatcher() {
 
 void FDTaskDispatcher::registerTask(SharedPtr<IFDTask> task) {
 	insertionQueue.push_back(task);
-	registerDescriptor(task->getDescriptor());
+	registerDescriptor(task->fileDescriptor);
 	// Option<SharedPtr<IProcessTask> > maybeProcessTask = task.tryAs<IProcessTask>();
 	// if (maybeProcessTask.isSome()) {
 	// 	processTasks[maybeProcessTask.get()->getPID()] = maybeProcessTask.get();
@@ -163,11 +165,11 @@ Option<Webserv::Error> FDTaskDispatcher::update() {
 	// Refresh storage
 	std::vector<SharedPtr<IFDTask> > newInserted;
 	for (std::vector<SharedPtr<IFDTask> >::iterator it = insertionQueue.begin(); it != insertionQueue.end(); it++) {
-		if (!tryRegisterDescriptor((*it)->getDescriptor(), (*it)->getIOMode())) {
+		if (!tryRegisterDescriptor((*it)->fileDescriptor, (*it)->ioMode)) {
 			newInserted.push_back(*it);
 		}
 		else {
-			activeHandlers[(*it)->getDescriptor()] = *it;
+			activeHandlers[(*it)->fileDescriptor] = *it;
 		}
 	}
 	insertionQueue = newInserted;
@@ -221,11 +223,11 @@ Option<Webserv::Error> FDTaskDispatcher::update() {
 
 	// Remove completed events
 	for (std::vector<SharedPtr<IFDTask> >::iterator it = freedHandlers.begin(); it != freedHandlers.end(); it++) {
-		if (!tryUnregisterDescriptor((*it)->getDescriptor())) {
+		if (!tryUnregisterDescriptor((*it)->fileDescriptor)) {
 			return Error(Error::GENERIC_ERROR, "Attempt to close non-existent descriptor");
 		}
-		activeHandlers.erase((*it)->getDescriptor());
-		tryCloseDescriptor((*it)->getDescriptor());
+		activeHandlers.erase((*it)->fileDescriptor);
+		tryCloseDescriptor((*it)->fileDescriptor);
 	}
 
 	// return updateProcessTasks();
@@ -236,7 +238,7 @@ void FDTaskDispatcher::removeByFd(int fd) {
 	tryUnregisterDescriptor(fd);
 	std::vector<SharedPtr<IFDTask> > newInserted;
 	for (std::vector<SharedPtr<IFDTask> >::iterator it = insertionQueue.begin(); it != insertionQueue.end(); it++) {
-		if ((*it)->getDescriptor() != fd) {
+		if ((*it)->fileDescriptor != fd) {
 			newInserted.push_back(*it);
 		}
 		else {

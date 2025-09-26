@@ -14,11 +14,13 @@ typedef Webserv::Config::Server::Location Location;
 typedef Webserv::ResponseHandler ResponseHandler;
 
 ResponseHandler::ResponseHandler(const ConnectionInfo& ci):
+	IFDTask(ci.connectionFd, WRITE_MODE),
 	conn(ci),
 	response(NONE)
 {}
 
 ResponseHandler::ResponseHandler(ConnectionInfo& ci, const HTTPResponse& resp):
+	IFDTask(ci.connectionFd, WRITE_MODE),
 	conn(ci),
 	response(resp)
 {}
@@ -37,13 +39,13 @@ Result<bool, Error> ResponseHandler::runTask(FDTaskDispatcher&) {
 	return false;
 }
 
-int ResponseHandler::getDescriptor() const {
-	return conn.connectionFd;
-}
+// int ResponseHandler::getDescriptor() const {
+// 	return conn.connectionFd;
+// }
 
-Webserv::IOMode ResponseHandler::getIOMode() const {
-	return WRITE_MODE;
-}
+// Webserv::IOMode ResponseHandler::getIOMode() const {
+// 	return WRITE_MODE;
+// }
 
 void ResponseHandler::setResponse(const HTTPResponse& resp) {
 	response = resp;

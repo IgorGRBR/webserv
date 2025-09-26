@@ -41,6 +41,8 @@ namespace Webserv {
 	// a server can operate at an optimal efficiency in regards to blocking and CPU utilization. 
 	class IFDTask {
 	public:
+		IFDTask(int, IOMode);
+		
 		virtual ~IFDTask();
 		
 		// Runs the task. Additionally provides the `FDTaskDispatcher` instance reference, as running a task may produce
@@ -50,11 +52,13 @@ namespace Webserv {
 
 		// Returns the file descriptor associated with the task.
 		// TODO: this can probably be a simple const field.
-		virtual int getDescriptor() const = 0;
+		// virtual int getDescriptor() const = 0;
+		const int fileDescriptor;
 
 		// Returns the IO mode of the task.
 		// TODO: same as the above.
-		virtual IOMode getIOMode() const = 0;
+		// virtual IOMode getIOMode() const = 0;
+		const IOMode ioMode;
 	};
 
 	// `IFDConsumer` is an interface that may represent a task that gradually consumes data from a file

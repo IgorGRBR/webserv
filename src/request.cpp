@@ -281,15 +281,15 @@ namespace Webserv {
 			}
 		}
 
+		Url respFileUrl = rootUrl + tail;
 		if (request.getMethod() == PUT) {
-			return handleFileUploadWithPUT(conn, request, rootUrl + tail);
+			return handleFileUploadWithPUT(conn, request, respFileUrl);
 		}
 
 		if (request.getMethod() == DELETE) {
-			return handleFileRemoval(conn, rootUrl + tail);
+			return handleFileRemoval(conn, respFileUrl);
 		}
 
-		Url respFileUrl = rootUrl + tail;
 		std::string respFilePath = respFileUrl.toString(false);
 		std::cout << "Trying to load: " << respFilePath << std::endl;
 

@@ -12,7 +12,7 @@ typedef Webserv::Error Error;
 typedef Webserv::Config::Server::Location Location;
 typedef Webserv::ClientListener ClientListener;
 
-ClientListener::ClientListener(const ServerData& data, int fd): sData(data), socketFd(fd) {}
+ClientListener::ClientListener(const ServerData& data, int fd): IFDTask(fd, READ_MODE), sData(data), socketFd(fd) {}
 
 Result<ClientListener*, Error> ClientListener::tryMake(Config& config, Config::Server &serverConfig, char* envp[]) {
 	ServerData sData;
@@ -71,13 +71,13 @@ Result<ClientListener*, Error> ClientListener::tryMake(Config& config, Config::S
 	return listener;
 }
 
-int ClientListener::getDescriptor() const {
-	return socketFd;
-}
+// int ClientListener::getDescriptor() const {
+// 	return socketFd;
+// }
 
-Webserv::IOMode ClientListener::getIOMode() const {
-	return READ_MODE;
-}
+// Webserv::IOMode ClientListener::getIOMode() const {
+// 	return READ_MODE;
+// }
 
 Result<bool, Webserv::Error> ClientListener::runTask(FDTaskDispatcher& dispatcher) {
 	int clientSocket = accept(socketFd, (sockaddr *)&sData.address, (socklen_t *)&sData.addressLen);
