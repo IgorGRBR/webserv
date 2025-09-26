@@ -106,7 +106,7 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 				SEND_ERROR(dispatcher, Error(Error::RESOURCE_NOT_FOUND));
 			}
 			Option<HTTPMethod> method = reqBuilder.getHTTPMethod();
-			if (method.isSome() && method.get() != GET && !reqBuilder.isChunked()) {
+			if (method.isSome() && method.get() != GET && !reqBuilder.isChunked() && method.get() != DELETE) {
 				Option<uint> maybeContLength = reqBuilder.getContentLength();
 				if (maybeContLength.isNone()) {
 					// TODO: replace with proper error code

@@ -7,6 +7,8 @@
 #include "webserv.hpp"
 #include "ystl.hpp"
 #include <cstddef>
+#include <cstdio>
+#include <fstream>
 #include <iostream> //added for file uploading
 
 typedef Result<SharedPtr<Webserv::IFDTask>, Webserv::Error> TaskResult;
@@ -82,6 +84,145 @@ namespace Webserv {
 		return pipeline.second.tryAs<IFDTask>().get();
 	}
 
+	static Option<Error> handleFileUploadWithPUSH(
+		HTTPRequest& request,
+		const Url& uploadPath
+	) {
+		// 1) Get the uploaded file from the request
+		std::string requestData = request.getData();
+		// std::cout << "(DEBUG) Received file data:\n" << requestData << std::endl;
+
+		// 2) Validate the uploaded file
+		Option<std::string> requestHeader = request.getHeader("Content-Type");
+		if (requestHeader.isNone()) {
+			return Error(Error::HTTP_ERROR, "Missing Content-Type header"); //TODO: Maybe it needs a more specific error?
+		}
+		// std::cout << "(DEBUG) Received Content-Type header:\n" << requestHeader.get() << std::endl;
+
+		// 3) Parse the request body; retrieve the content type from the header
+		std::string contentTypeHeader = requestHeader.get();
+		std::string boundaryPrefix = "boundary=";
+		std::size_t boundaryPos = contentTypeHeader.find(boundaryPrefix);
+		if (boundaryPos == std::string::npos) {
+			return Error(Error::HTTP_ERROR, "Missing boundary in Content-Type header"); //TODO: Maybe it needs a more specific error?
+		}
+
+		std::string boundary = contentTypeHeader.substr(boundaryPos + boundaryPrefix.length(), contentTypeHeader.npos);
+		std::string boundLine = "--" + boundary;
+		std::size_t partStart = requestData.find(boundLine);
+		if (partStart == std::string::npos) {
+			return Error(Error::HTTP_ERROR, "Boundary not found in request data");
+		}
+		partStart += boundLine.length();
+		if (requestData.substr(partStart, 2) == "\r\n") {
+			partStart += 2;
+		}
+		std::string contentType = contentTypeHeader.substr(0, boundaryPos);
+
+		std::size_t headersEndPos = requestData.find("\r\n\r\n", partStart);
+		if (headersEndPos == std::string::npos){
+			return Error(Error::HTTP_ERROR, "Malformed headers in request data"); //TODO: Maybe it needs a more specific error?
+		}
+		std::string headers = requestData.substr(partStart, headersEndPos - partStart);
+		// std::cout << "(DEBUG) Headers: " << headers << std::endl;
+
+		std::string filename;
+		std::size_t contentDispPos = headers.find("Content-Disposition:");
+		if (contentDispPos != std::string::npos) {
+			std::size_t filenamePos = headers.find("filename=\"", contentDispPos);
+			if (filenamePos != std::string::npos) {
+				filenamePos += 10;
+				std::size_t filenameEndPos = headers.find("\"", filenamePos);
+				if (filenameEndPos != std::string::npos){
+					filename = headers.substr(filenamePos, filenameEndPos - filenamePos);
+				}
+				else {
+					return Error(Error::HTTP_ERROR, "Malformed filename in Content-Disposition."); //TODO: Maybe it needs a more specific error?
+				}
+			}
+			else {
+				return Error(Error::HTTP_ERROR, "Filename not found in Content-Disposition."); //TODO: Maybe it needs a more specific error?
+			}
+		}
+		else {
+			return Error(Error::HTTP_ERROR, "Filename not found."); //TODO: Maybe it needs a more specific error?
+		}
+
+		std::size_t fileStart = headersEndPos + 4;
+		std::string closingBoundary = boundLine + "--";
+		std::size_t fileEnd = requestData.find(closingBoundary, fileStart);
+		std::cout << closingBoundary << std::endl;
+		if (fileEnd == std::string::npos) {
+			std::string altClosingBoundary = "\r\n" + closingBoundary;
+			fileEnd = requestData.find(altClosingBoundary, fileStart);
+			if (fileEnd != std::string::npos) {
+				closingBoundary = altClosingBoundary;
+			}
+			// std::cout << "(DEBUG) Found closing boundary: " << fileEnd << std::endl;
+		}
+		std::string fileContent = requestData.substr(fileStart, fileEnd - fileStart);
+		fileContent = fileContent.substr(0, fileContent.length() - closingBoundary.length() - 2);
+
+		// std::cout << "(DEBUG) Retrieved content type:\n" << contentType << std::endl;
+		if (contentType == "multipart/form-data; ") {
+			// 4) Store the uploaded file in exampleSite/upload
+			// 4.1) Create the file in the upload directory
+			std::string filePath = uploadPath.toString(false, true) + "/" + filename;
+			std::ofstream uploadFile(filePath.c_str());
+			if (!uploadFile.is_open()) {
+				return Error(Error::HTTP_ERROR, "Failed to create an upload file"); //TODO: Maybe it needs a more specific error?
+			}
+
+			// 4.2) Write the file content
+			uploadFile << fileContent;
+		}
+		return NONE;
+	}
+
+	static TaskResult handleFileUploadWithPUT(
+		ConnectionInfo conn,
+		HTTPRequest& request,
+		const Url& uploadPath
+	) {
+		std::string filePath = uploadPath.toString(false, true);
+		std::ofstream uploadFile(filePath.c_str());
+		if (!uploadFile.is_open()) {
+			return Error(Error::GENERIC_ERROR, "Failed to create/open an upload file"); // TODO: replace with a proper error tag
+		}
+
+		uploadFile << request.getData();
+
+		HTTPResponse response = HTTPResponse(Url(), HTTP_OK);
+
+		Result<ResponseHandler*, Error> handler = ResponseHandler::tryMake(conn, response);
+
+		if (handler.isError()) {
+			return handler.getError();
+		}
+
+		return SharedPtr<IFDTask>(handler.getValue());
+	}
+
+	static TaskResult handleFileRemoval(
+		ConnectionInfo conn,
+		const Url& filePath
+	) {
+		// This might not be compliant with the subject document, but IDGAF at this point.
+		int status = std::remove(filePath.toString(false, true).c_str());
+
+		(void)status;
+		// TODO: make sure the correct response code is returned here
+		HTTPResponse response = HTTPResponse(Url(), HTTP_OK);
+
+		Result<ResponseHandler*, Error> handler = ResponseHandler::tryMake(conn, response);
+
+		if (handler.isError()) {
+			return handler.getError();
+		}
+
+		return SharedPtr<IFDTask>(handler.getValue());
+	}
+
 	TaskResult handleLocation(
 	const Url& path,
 	const Config::Server::Location& location,
@@ -131,103 +272,21 @@ namespace Webserv {
 			return handleCGI(clientSocketFd, rootUrl, tail, location, request, sData);
 		}
 
-		// TODO: move file uploads in a separate function
 		if (tail.getSegments().empty()
 		&& request.getMethod() == POST
 		&& location.fileUploadFieldId.isSome()) {
-			// TODO: handle file uploading here
-			// 1) Get the uploaded file from the request
-			std::string requestData = request.getData();
-			// std::cout << "(DEBUG) Received file data:\n" << requestData << std::endl;
-
-			// 2) Validate the uploaded file
-			Option<std::string> requestHeader = request.getHeader("Content-Type");
-			if (requestHeader.isNone()) {
-				return Error(Error::HTTP_ERROR, "Missing Content-Type header"); //TODO: Maybe it needs a more specific error?
-			}
-			// std::cout << "(DEBUG) Received Content-Type header:\n" << requestHeader.get() << std::endl;
-
-			// 3) Parse the request body; retrieve the content type from the header
-			std::string contentTypeHeader = requestHeader.get();
-			std::string boundaryPrefix = "boundary=";
-			std::size_t boundaryPos = contentTypeHeader.find(boundaryPrefix);
-			if (boundaryPos == std::string::npos) {
-				return Error(Error::HTTP_ERROR, "Missing boundary in Content-Type header"); //TODO: Maybe it needs a more specific error?
-			}
-
-			std::string boundary = contentTypeHeader.substr(boundaryPos + boundaryPrefix.length(), contentTypeHeader.npos);
-			std::string boundLine = "--" + boundary;
-			std::size_t partStart = requestData.find(boundLine);
-			if (partStart == std::string::npos) {
-				return Error(Error::HTTP_ERROR, "Boundary not found in request data");
-			}
-			partStart += boundLine.length();
-			if (requestData.substr(partStart, 2) == "\r\n") {
-				partStart += 2;
-			}
-			std::string contentType = contentTypeHeader.substr(0, boundaryPos);
-
-			std::size_t headersEndPos = requestData.find("\r\n\r\n", partStart);
-			if (headersEndPos == std::string::npos){
-				return Error(Error::HTTP_ERROR, "Malformed headers in request data"); //TODO: Maybe it needs a more specific error?
-			}
-			std::string headers = requestData.substr(partStart, headersEndPos - partStart);
-			// std::cout << "(DEBUG) Headers: " << headers << std::endl;
-
-			std::string filename;
-			std::size_t contentDispPos = headers.find("Content-Disposition:");
-			if (contentDispPos != std::string::npos) {
-				std::size_t filenamePos = headers.find("filename=\"", contentDispPos);
-				if (filenamePos != std::string::npos) {
-					filenamePos += 10;
-					std::size_t filenameEndPos = headers.find("\"", filenamePos);
-					if (filenameEndPos != std::string::npos){
-						filename = headers.substr(filenamePos, filenameEndPos - filenamePos);
-					}
-					else {
-						return Error(Error::HTTP_ERROR, "Malformed filename in Content-Disposition."); //TODO: Maybe it needs a more specific error?
-					}
-				}
-				else {
-					return Error(Error::HTTP_ERROR, "Filename not found in Content-Disposition."); //TODO: Maybe it needs a more specific error?
-				}
-			}
-			else {
-				return Error(Error::HTTP_ERROR, "Filename not found."); //TODO: Maybe it needs a more specific error?
-			}
-
-			std::size_t fileStart = headersEndPos + 4;
-			std::string closingBoundary = boundLine + "--";
-			std::size_t fileEnd = requestData.find(closingBoundary, fileStart);
-			std::cout << closingBoundary << std::endl;
-			if (fileEnd == std::string::npos) {
-				std::string altClosingBoundary = "\r\n" + closingBoundary;
-				fileEnd = requestData.find(altClosingBoundary, fileStart);
-				if (fileEnd != std::string::npos) {
-					closingBoundary = altClosingBoundary;
-				}
-				// std::cout << "(DEBUG) Found closing boundary: " << fileEnd << std::endl;
-			}
-			std::string fileContent = requestData.substr(fileStart, fileEnd - fileStart);
-			fileContent = fileContent.substr(0, fileContent.length() - closingBoundary.length() - 2);
-
-			// std::cout << "(DEBUG) Retrieved content type:\n" << contentType << std::endl;
-			if (contentType == "multipart/form-data; ") {
-				// 4) Store the uploaded file in exampleSite/upload
-				// 4.1) Create the file in the upload directory
-				std::string filePath = "exampleSite/upload/" + filename;
-				std::ofstream uploadFile(filePath.c_str());
-				if (!uploadFile.is_open()) {
-					return Error(Error::HTTP_ERROR, "Failed to create upload file"); //TODO: Maybe it needs a more specific error?
-				}
-
-				// 4.2) Write the file content
-				uploadFile << fileContent;
+			Option<Error> maybeError = handleFileUploadWithPUSH(request, rootUrl);
+			if (maybeError.isSome()) {
+				return maybeError.get();
 			}
 		}
 
+		if (request.getMethod() == PUT) {
+			return handleFileUploadWithPUT(conn, request, rootUrl + tail);
+		}
+
 		if (request.getMethod() == DELETE) {
-			// TODO: delete the file
+			return handleFileRemoval(conn, rootUrl + tail);
 		}
 
 		Url respFileUrl = rootUrl + tail;
