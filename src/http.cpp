@@ -45,8 +45,16 @@ const char* Webserv::httpRequestErrorMessage(HTTPRequestError err) {
 			return "Invalid request";
 		case NO_DATA_SEGMENT:
 			return "Data segment of the request is missing";
-		case INVALID_METHOD:
+		case INVALID_HTTP_METHOD:
 			return "Invalid HTTP method received";
+		case MISSING_STARTING_LINE:
+			return "HTTP starting line is missing/message is empty";
+		case MISSING_HTTP_METHOD:
+			return "HTTP method is missing";
+		case MISSING_HTTP_PATH:
+			return "HTTP path is missing";
+		case INVALID_HTTP_HEADER:
+			return "Invalid/corrupted HTTP header";
 	}
 	return "unknown";
 }
@@ -59,7 +67,7 @@ Result<HTTPRequest, HTTPRequestError> Webserv::HTTPRequest::fromText(std::string
 
 	std::string line;
 	if (!std::getline(s, line)) {
-		return INVALID_REQUEST; // TODO: a better error message
+		return MISSING_STARTING_LINE;
 	}
 
 	// Parse the start line
@@ -68,7 +76,7 @@ Result<HTTPRequest, HTTPRequestError> Webserv::HTTPRequest::fromText(std::string
 
 	// Method
 	if (!std::getline(firstLineStream, word, ' ')) {
-		return INVALID_REQUEST; // TODO: a better error message
+		return MISSING_HTTP_METHOD;
 	}
 
 	Option<HTTPMethod> maybeMethod = httpMethodFromStr(word);
@@ -76,12 +84,12 @@ Result<HTTPRequest, HTTPRequestError> Webserv::HTTPRequest::fromText(std::string
 		request.method = maybeMethod.get();
 	}
 	else {
-		return INVALID_METHOD;
+		return INVALID_HTTP_METHOD;
 	}
 
 	// Path
 	if (!std::getline(firstLineStream, word, ' ')) {
-		return INVALID_REQUEST; // TODO: a better error message
+		return MISSING_HTTP_PATH;
 	}
 	{
 		Option<Url> maybePath = Url::fromString(word);
@@ -90,9 +98,10 @@ Result<HTTPRequest, HTTPRequestError> Webserv::HTTPRequest::fromText(std::string
 	}
 
 	// HTTP version
-	if (!std::getline(firstLineStream, word, ' ')) {
-		return INVALID_REQUEST; // TODO: a better error message
-	}
+	// (We can probably ignore it)
+	// if (!std::getline(firstLineStream, word, ' ')) {
+	// 	return INVALID_REQUEST;
+	// }
 
 	bool emptyLine = false;
 	while (std::getline(s, line)) {
@@ -104,7 +113,7 @@ Result<HTTPRequest, HTTPRequestError> Webserv::HTTPRequest::fromText(std::string
 		// Parse a header
 		size_t colonPos = line.find(":");
 		if (colonPos == line.npos) {
-			return INVALID_REQUEST; // TODO: a better error message
+			return INVALID_HTTP_HEADER;
 		}
 		std::string paramName = line.substr(0, colonPos);
 		std::string paramValue = trimString(trimString(
@@ -633,8 +642,7 @@ Result<Builder::State, Webserv::Error> Builder::readChunk(const std::string& str
 		size_t nlPos = chunk.find("\r\n", chunkEnd);
 		if (nlPos != chunk.npos) {
 			Option<uint> maybeSize = hexStrToUInt(chunk.substr(chunkEnd, nlPos - chunkEnd));
-			// TODO: proper error tag
-			if (maybeSize.isNone()) return Error(Error::GENERIC_ERROR, "Chunk size reading error");
+			if (maybeSize.isNone()) return Error(HTTP_BAD_REQUEST, "Chunk size reading error");
 			if (maybeSize == 0) {
 				chunkedReadComplete = true;
 				return HEADER_COMPLETE;
@@ -712,14 +720,5 @@ Result<UniquePtr<Webserv::HTTPRequest>, Webserv::Error> Builder::build() {
 		collectedDataStream << lines[i];
 	}
 	request->setData(collectedDataStream.str());
-	// if (chunked) {
-	// 	Option<HTTPRequest> unchunked = request->unchunked();
-	// 	if (unchunked.isNone()) {
-	// 		// TODO: replace with proper error code
-	// 		return Error(Error::GENERIC_ERROR, "Could not unchunk the request");
-	// 	}
-	// 	delete request.move();
-	// 	request = new HTTPRequest(unchunked.get());
-	// }
 	return request;
 }

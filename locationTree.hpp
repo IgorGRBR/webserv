@@ -29,7 +29,6 @@ namespace Webserv {
 		};
 
 		// Attempts to find a location config at the specified url.
-		// TODO: get rid of `tryGet` in Option and replace these with optional references.
 		Option<LocationSearchResult> tryFindLocation(Url locationUrl) const;
 
 		// Inserts a location pointer into the tree by the provided `url` as a path.

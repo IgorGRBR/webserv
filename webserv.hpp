@@ -13,12 +13,6 @@
 #include <string>
 #include <sys/types.h>
 
-// This macro is a temporary solution for specifying the buffer size of HTTP request messages server can listen to.
-// TODO: Make it should be configureable within config file.
-#ifndef MSG_BUF_SIZE
-#define MSG_BUF_SIZE 20000
-#endif
-
 // `Webserv` is the main namespace we are working with. Everything related to the web server functionality
 // should reside in this namespace.
 namespace Webserv {
@@ -31,7 +25,6 @@ namespace Webserv {
 	};
 
 	// `ServerData` contains the parsed configuration of the server instance.
-	// TODO: Should probably remove the `config` field, and replace it with it's parsed variant as well.
 	struct ServerData {
 		Config::Server config;
 		ushort port;
@@ -44,6 +37,7 @@ namespace Webserv {
 		std::set<std::string> serverNames;
 		std::map<std::string, std::string> cgiInterpreters;
 		char** envp;
+		uint messageBufferSize;
 	};
 
 	// This struct will contain all the necessary details about current connection to the client.

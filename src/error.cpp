@@ -2,66 +2,77 @@
 #include "http.hpp"
 #include <sys/types.h>
 
-typedef Webserv::Error ServerError;
+namespace Webserv {
 
-Webserv::Error::Error(ServerError::Tag t): tag(t) {}
-
-Webserv::Error::Error(Tag t, const std::string& message):
-	tag(t), message(message) {};
-
-const char* Webserv::Error::getTagMessage() const {
-	switch (tag) {
-		case SOCKET_CREATION_FAILURE:
-			return "Failed to create a socket";
-		case SOCKET_BIND_FAILURE:
-			return "Failed to bind a socket";
-		case SOCKET_LISTEN_FAILURE:
-			return "Failed to set listen mode for a socket";
-		case SOCKET_ACCEPT_FAILURE:
-			return "Failed to accept message from a socket";
-		case HTTP_ERROR:
-			return "Inner HTTP error";
-		case SHUTDOWN_SIGNAL:
-			return "Dummy shutdown signal";
-		case PATH_PARSING_ERROR:
-			return "Error in path construction";
-		case GENERIC_ERROR:
-			return "Generic ahh error. Tell the programmer they suck ass at their job";
-		case EPOLL_ERROR:
-			return "EPOLL error";
-		case RESOURCE_NOT_FOUND:
-			return "Resource not found";
-		case FILE_NOT_FOUND:
-			return "File not found";
-		case ALLOC_ERROR:
-			return "Allocation failure";
-		case FORM_PARSING_ERROR:
-			return "Error when parsing HTTP form";
-		case CGI_IO_ERROR:
-			return "Error with CGI IO or pipes";
-		case CGI_RUNTIME_FAULT:
-			return "Error occured when executing CGI script";
+	Error::Error(Tag t): tag(t) {}
+	
+	Error::Error(Tag t, const std::string& message):
+		tag(t), message(message) {};
+	
+	Error::Error(HTTPReturnCode code, const std::string& message):
+		tag(HTTP_ERROR),
+		message(message),
+		code(code)
+	{}
+	
+	const char* Webserv::Error::getTagMessage() const {
+		switch (tag) {
+			case SOCKET_CREATION_FAILURE:
+				return "Failed to create a socket";
+			case SOCKET_BIND_FAILURE:
+				return "Failed to bind a socket";
+			case SOCKET_LISTEN_FAILURE:
+				return "Failed to set listen mode for a socket";
+			case SOCKET_ACCEPT_FAILURE:
+				return "Failed to accept message from a socket";
+			case HTTP_ERROR:
+				return "Inner HTTP error";
+			case SHUTDOWN_SIGNAL:
+				return "Dummy shutdown signal";
+			case PATH_PARSING_ERROR:
+				return "Error in path construction";
+			case GENERIC_ERROR:
+				return "Generic ahh error. Tell the programmer they suck ass at their job";
+			case EPOLL_ERROR:
+				return "EPOLL error";
+			case RESOURCE_NOT_FOUND:
+				return "Resource not found";
+			case FILE_NOT_FOUND:
+				return "File not found";
+			case ALLOC_ERROR:
+				return "Allocation failure";
+			case FORM_PARSING_ERROR:
+				return "Error when parsing HTTP form";
+			case CGI_IO_ERROR:
+				return "Error with CGI IO or pipes";
+			case CGI_RUNTIME_FAULT:
+				return "Error occured when executing CGI script";
+			case CONFIG_ERROR:
+				return "Invalid configuration value encountered";
+		}
+		return "Unknown";
 	}
-	return "Unknown";
-}
-
-Webserv::HTTPReturnCode Webserv::Error::getHTTPCode() const {
-	switch (tag) {
-		case GENERIC_ERROR: return HTTP_INTERNAL_SERVER_ERROR;
-		case SOCKET_CREATION_FAILURE: return HTTP_INTERNAL_SERVER_ERROR;
-		case SOCKET_BIND_FAILURE: return HTTP_INTERNAL_SERVER_ERROR;
-		case SOCKET_LISTEN_FAILURE: return HTTP_INTERNAL_SERVER_ERROR;
-		case SOCKET_ACCEPT_FAILURE: return HTTP_INTERNAL_SERVER_ERROR;
-		case HTTP_ERROR: return HTTP_INTERNAL_SERVER_ERROR;
-		case SHUTDOWN_SIGNAL: return HTTP_OK;
-		case PATH_PARSING_ERROR: return HTTP_FORBIDDEN;
-		case EPOLL_ERROR: return HTTP_INTERNAL_SERVER_ERROR;
-		case RESOURCE_NOT_FOUND: return HTTP_NOT_FOUND;
-		case FILE_NOT_FOUND: return HTTP_NOT_FOUND;
-		case ALLOC_ERROR: return HTTP_INTERNAL_SERVER_ERROR;
-		case FORM_PARSING_ERROR: return HTTP_INTERNAL_SERVER_ERROR;
-		case CGI_IO_ERROR: return HTTP_INTERNAL_SERVER_ERROR;
-		case CGI_RUNTIME_FAULT: return HTTP_INTERNAL_SERVER_ERROR;
+	
+	HTTPReturnCode Error::getHTTPCode() const {
+		if (code != HTTP_NONE) return code;
+		switch (tag) {
+			case GENERIC_ERROR: return HTTP_INTERNAL_SERVER_ERROR;
+			case SOCKET_CREATION_FAILURE: return HTTP_INTERNAL_SERVER_ERROR;
+			case SOCKET_BIND_FAILURE: return HTTP_INTERNAL_SERVER_ERROR;
+			case SOCKET_LISTEN_FAILURE: return HTTP_INTERNAL_SERVER_ERROR;
+			case SOCKET_ACCEPT_FAILURE: return HTTP_INTERNAL_SERVER_ERROR;
+			case HTTP_ERROR: return HTTP_INTERNAL_SERVER_ERROR;
+			case SHUTDOWN_SIGNAL: return HTTP_OK;
+			case PATH_PARSING_ERROR: return HTTP_FORBIDDEN;
+			case EPOLL_ERROR: return HTTP_INTERNAL_SERVER_ERROR;
+			case RESOURCE_NOT_FOUND: return HTTP_NOT_FOUND;
+			case FILE_NOT_FOUND: return HTTP_NOT_FOUND;
+			case ALLOC_ERROR: return HTTP_INTERNAL_SERVER_ERROR;
+			case FORM_PARSING_ERROR: return HTTP_INTERNAL_SERVER_ERROR;
+			case CGI_IO_ERROR: return HTTP_INTERNAL_SERVER_ERROR;
+			case CGI_RUNTIME_FAULT: return HTTP_INTERNAL_SERVER_ERROR;
+			case CONFIG_ERROR: return HTTP_INTERNAL_SERVER_ERROR;
+		}
+		return HTTP_NONE;
 	}
-	return HTTP_NONE;
 }

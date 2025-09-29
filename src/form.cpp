@@ -5,22 +5,21 @@
 #include <sstream>
 #include <utility>
 
-// TODO: all of the errors in here should be sufficiently descriptive (and have proper tags!)
 namespace Webserv {
 	Result<Form, Error> Form::fromRequest(const HTTPRequest& request) {
 		Option<std::string> maybeContentType = request.getHeader("Content-Type");
 		if (maybeContentType.isNone()) {
-			return Error(Error::FORM_PARSING_ERROR, "Error when parsing request content type");
+			return Error(Error::FORM_PARSING_ERROR, "Couldn't find \"Content-Type\" header");
 		}
 
 		const std::string& contentType = maybeContentType.get();
 		size_t boundaryIdx = contentType.find("boundary=");
 		if (boundaryIdx == contentType.npos) {
-			return Error(Error::FORM_PARSING_ERROR, "Error when parsing request content type");
+			return Error(Error::FORM_PARSING_ERROR, "Couldn't find boundary descriptor");
 		}
 		size_t restIdx = contentType.find_first_of(" \t\r\n\0", boundaryIdx + 11);
 		if (restIdx == contentType.npos) {
-			return Error(Error::FORM_PARSING_ERROR, "Error when parsing request content type");
+			return Error(Error::FORM_PARSING_ERROR, "Couldn't find the rest of the message");
 		}
 
 		return Form::fromString(
@@ -71,7 +70,7 @@ namespace Webserv {
 
 		while (true) {
 			size_t nextIdx = dataStr.find(properBoundary, formIdx);
-			if (nextIdx == dataStr.npos) // TODO: This might be a problem, make sure it isn't.
+			if (nextIdx == dataStr.npos)
 				break;
 			std::string formStr = dataStr.substr(formIdx, nextIdx - formIdx);
 			Option<std::pair<std::string, std::string> > kvPair = parseFormStr(formStr);
@@ -97,11 +96,5 @@ namespace Webserv {
 			return fields.at(key);
 		}
 		return NONE;
-	}
-
-	std::string Form::toCGIString() const {
-		std::stringstream result;
-		// TODO: what?
-		return result.str();
 	}
 }

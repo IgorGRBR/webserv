@@ -40,7 +40,7 @@ namespace Webserv {
 		(void)location;
 		// First - determine what kind of interpreter to run for the CGI
 		if (rest.getSegments().empty()) {
-			return Error(Error::GENERIC_ERROR, "No script was selected");
+			return Error(HTTP_FORBIDDEN, "No script was selected");
 		}
 
 		Url scriptLocation = root + rest.head();
@@ -70,7 +70,8 @@ namespace Webserv {
 			scriptLocation,
 			rest.tail(),
 			request,
-			sData.envp
+			sData.envp,
+			sData.messageBufferSize
 		);
 		if (maybePipeline.isError())
 			return maybePipeline.getError();
@@ -95,7 +96,7 @@ namespace Webserv {
 		// 2) Validate the uploaded file
 		Option<std::string> requestHeader = request.getHeader("Content-Type");
 		if (requestHeader.isNone()) {
-			return Error(Error::HTTP_ERROR, "Missing Content-Type header"); //TODO: Maybe it needs a more specific error?
+			return Error(HTTP_BAD_REQUEST, "Missing Content-Type header");
 		}
 		// std::cout << "(DEBUG) Received Content-Type header:\n" << requestHeader.get() << std::endl;
 
@@ -104,14 +105,14 @@ namespace Webserv {
 		std::string boundaryPrefix = "boundary=";
 		std::size_t boundaryPos = contentTypeHeader.find(boundaryPrefix);
 		if (boundaryPos == std::string::npos) {
-			return Error(Error::HTTP_ERROR, "Missing boundary in Content-Type header"); //TODO: Maybe it needs a more specific error?
+			return Error(HTTP_BAD_REQUEST, "Missing boundary in Content-Type header");
 		}
 
 		std::string boundary = contentTypeHeader.substr(boundaryPos + boundaryPrefix.length(), contentTypeHeader.npos);
 		std::string boundLine = "--" + boundary;
 		std::size_t partStart = requestData.find(boundLine);
 		if (partStart == std::string::npos) {
-			return Error(Error::HTTP_ERROR, "Boundary not found in request data");
+			return Error(HTTP_BAD_REQUEST, "Boundary not found in request data");
 		}
 		partStart += boundLine.length();
 		if (requestData.substr(partStart, 2) == "\r\n") {
@@ -121,7 +122,7 @@ namespace Webserv {
 
 		std::size_t headersEndPos = requestData.find("\r\n\r\n", partStart);
 		if (headersEndPos == std::string::npos){
-			return Error(Error::HTTP_ERROR, "Malformed headers in request data"); //TODO: Maybe it needs a more specific error?
+			return Error(HTTP_BAD_REQUEST, "Malformed headers in request data");
 		}
 		std::string headers = requestData.substr(partStart, headersEndPos - partStart);
 		// std::cout << "(DEBUG) Headers: " << headers << std::endl;
@@ -137,15 +138,15 @@ namespace Webserv {
 					filename = headers.substr(filenamePos, filenameEndPos - filenamePos);
 				}
 				else {
-					return Error(Error::HTTP_ERROR, "Malformed filename in Content-Disposition."); //TODO: Maybe it needs a more specific error?
+					return Error(HTTP_BAD_REQUEST, "Malformed filename in Content-Disposition.");
 				}
 			}
 			else {
-				return Error(Error::HTTP_ERROR, "Filename not found in Content-Disposition."); //TODO: Maybe it needs a more specific error?
+				return Error(HTTP_BAD_REQUEST, "Filename not found in Content-Disposition.");
 			}
 		}
 		else {
-			return Error(Error::HTTP_ERROR, "Filename not found."); //TODO: Maybe it needs a more specific error?
+			return Error(HTTP_BAD_REQUEST, "Filename not found.");
 		}
 
 		std::size_t fileStart = headersEndPos + 4;
@@ -170,7 +171,7 @@ namespace Webserv {
 			std::string filePath = uploadPath.toString(false, true) + "/" + filename;
 			std::ofstream uploadFile(filePath.c_str());
 			if (!uploadFile.is_open()) {
-				return Error(Error::HTTP_ERROR, "Failed to create an upload file"); //TODO: Maybe it needs a more specific error?
+				return Error(HTTP_INTERNAL_SERVER_ERROR, "Failed to create an upload file");
 			}
 
 			// 4.2) Write the file content
@@ -187,12 +188,12 @@ namespace Webserv {
 		std::string filePath = uploadPath.toString(false, true);
 		std::ofstream uploadFile(filePath.c_str());
 		if (!uploadFile.is_open()) {
-			return Error(Error::GENERIC_ERROR, "Failed to create/open an upload file"); // TODO: replace with a proper error tag
+			return Error(HTTP_INTERNAL_SERVER_ERROR, "Failed to create/open an upload file");
 		}
 
 		uploadFile << request.getData();
 
-		HTTPResponse response = HTTPResponse(Url(), HTTP_OK);
+		HTTPResponse response = HTTPResponse(Url(), HTTP_CREATED);
 
 		Result<ResponseHandler*, Error> handler = ResponseHandler::tryMake(conn, response);
 
@@ -210,9 +211,7 @@ namespace Webserv {
 		// This might not be compliant with the subject document, but IDGAF at this point.
 		int status = std::remove(filePath.toString(false, true).c_str());
 
-		(void)status;
-		// TODO: make sure the correct response code is returned here
-		HTTPResponse response = HTTPResponse(Url(), HTTP_OK);
+		HTTPResponse response = HTTPResponse(Url(), status < 0? HTTP_INTERNAL_SERVER_ERROR : HTTP_OK);
 
 		Result<ResponseHandler*, Error> handler = ResponseHandler::tryMake(conn, response);
 
@@ -261,7 +260,7 @@ namespace Webserv {
 			root = sData.config.defaultRoot.get();
 		}
 		else {
-			return Error(Error::HTTP_ERROR, "Missing root location in configuration");
+			return Error(Error::CONFIG_ERROR, "Missing root location in configuration");
 		}
 
 		Option<std::string> fileContent = NONE;
@@ -344,7 +343,9 @@ namespace Webserv {
 			
 			Result<ResponseHandler*, Error> response = ResponseHandler::tryMake(conn, resp);
 			if (response.isError()) {
+#ifdef DEBUG
 				std::cout << "ERROR: Failed to create ResponseHandler!" << std::endl;
+#endif
 				return response.getError();
 			}
 
@@ -354,13 +355,13 @@ namespace Webserv {
 			return Error(Error::FILE_NOT_FOUND, respFilePath);
 		}
 
-		return Error(Error::GENERIC_ERROR, "Not implemented");
+		return Error(HTTP_NOT_IMPLEMENTED, "Not implemented");
 	}
 
 	TaskResult handleRequest(HTTPRequest& request, LocationTreeNode::LocationSearchResult& query, ServerData& sData, int clientSocketFd) {
 		const Location* location = query.location;
 		if (!checkIfMethodIsInByte(request.getMethod(), location->allowedMethods)) {
-				return Error(Error::GENERIC_ERROR, "HTTP method is not allowed");
+			return Error(HTTP_METHOD_NOT_ALLOWED, "HTTP method is not allowed");
 		};
 		return handleLocation(query.locationPath, *location, request, sData, clientSocketFd);
 	};

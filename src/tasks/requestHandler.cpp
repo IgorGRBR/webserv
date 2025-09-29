@@ -11,8 +11,13 @@
 #include <string>
 #include <cctype>  // for tolower
 
-
 #define SEND_ERROR(dispatcher, errorObj) { \
+		Option<Error> critical = sendError(dispatcher, errorObj); \
+		if (critical.isSome()) return critical.get(); \
+		return false; \
+	} \
+
+#define SEND_ERROR_OVERRIDE(dispatcher, errorObj) { \
 		Option<Error> critical = sendError(dispatcher, errorObj); \
 		if (critical.isSome()) return critical.get(); \
 		return false; \
@@ -40,18 +45,13 @@ Result<RequestHandler*, Error> RequestHandler::tryMake(int cfd, ServerData &data
 	return rHandler;
 }
 
-// int RequestHandler::getDescriptor() const {
-// 	return clientSocketFd;
-// }
-
-// Webserv::IOMode RequestHandler::getIOMode() const {
-// 	return READ_MODE;
-// }
-
 Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
-	char buffer[MSG_BUF_SIZE + 1] = {0};
-	long readResult = read(clientSocketFd, (void*)buffer, MSG_BUF_SIZE);
+	// char buffer[MSG_BUF_SIZE + 1] = {0};
+	char* buffer = new char[sData.messageBufferSize + 1]();
+	long readResult = read(clientSocketFd, (void*)buffer, sData.messageBufferSize);
+	buffer[sData.messageBufferSize] = '\0';
 	std::string bufStr = std::string(buffer, readResult);
+	delete[] buffer;
 #ifdef DEBUG
 	std::cout << "Read result: " << readResult << "\nContent:\n" << bufStr << std::endl;
 #endif
@@ -89,12 +89,11 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 			// Check if the request host header matches the name of the server.
 			Option<std::string> maybeHost = reqBuilder.getHost();
 			if (maybeHost.isNone()) {
-				// TODO: replace the proper error tag
-				SEND_ERROR(dispatcher, Error(Error::GENERIC_ERROR, "Missing host"));
+				SEND_ERROR(dispatcher, Error(HTTP_BAD_REQUEST, "Missing host"));
 			}
 			std::string host = maybeHost.get();
 			if (sData.serverNames.find(host) == sData.serverNames.end()) {
-				SEND_ERROR(dispatcher, Error(Error::GENERIC_ERROR, "Invalid host"));
+				SEND_ERROR(dispatcher, Error(HTTP_FORBIDDEN, "Invalid host"));
 			}
 		}
 		if (dataSizeLimit.isNone()) {
@@ -103,21 +102,18 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 				dataSizeLimit = location.get().location->maxRequestSize.getOr(sData.maxRequestSize);
 			}
 			else {
-				// TODO: make sure the error code is correct
-				SEND_ERROR(dispatcher, Error(Error::RESOURCE_NOT_FOUND));
+				SEND_ERROR(dispatcher, Error(Error::RESOURCE_NOT_FOUND, "Specified location not found"));
 			}
 			Option<HTTPMethod> method = reqBuilder.getHTTPMethod();
 			if (method.isSome() && method.get() != GET && !reqBuilder.isChunked() && method.get() != DELETE) {
 				Option<uint> maybeContLength = reqBuilder.getContentLength();
 				if (maybeContLength.isNone()) {
-					// TODO: replace with proper error code
-					SEND_ERROR(dispatcher, Error(Error::HTTP_ERROR, 
+					SEND_ERROR(dispatcher, Error(HTTP_LENGTH_REQUIRED, 
 						"HTTP message is missing Content-Length header"));
 				}
 				uint contLength = maybeContLength.get();
 				if (contLength > dataSizeLimit.get()) {
-					// TODO: set the correct error tag
-					SEND_ERROR(dispatcher, Error(Error::GENERIC_ERROR,
+					SEND_ERROR(dispatcher, Error(HTTP_PAYLOAD_TOO_LARGE,
 						"HTTP message content length is too large!"));
 				}
 				dataSizeLimit = contLength;
@@ -144,29 +140,20 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 				return false;
 			}
 			else {
-				// TODO: set the correct error tag
-				SEND_ERROR(dispatcher, Error(Error::GENERIC_ERROR, "HTTP message content length is too large!"));
+				SEND_ERROR(dispatcher, Error(HTTP_PAYLOAD_TOO_LARGE, "HTTP message content length is too large!"));
 			}
 		}
 		break;
-		// case HTTPRequest::Builder::CHUNKED_READ_COMPLETE:
-		// 	Option<Error> maybeError = finalize(dispatcher);
-		// 	if (maybeError.isSome()) {
-		// 		SEND_ERROR(dispatcher, maybeError.get());
-		// 	}
-		// 	return false;
-		// break;
 	}
 	return false;
 }
 
-// TODO: this code has been duplicated from `chunkReader.cpp`. Extracting it into a separate function is a good idea.
-Option<Error> RequestHandler::sendError(FDTaskDispatcher& dispatcher, Error error) {
+Option<Error> RequestHandler::sendError(FDTaskDispatcher& dispatcher, Error error, HTTPReturnCode codeOverride) {
 	ConnectionInfo conn;
 	conn.connectionFd = clientSocketFd;
 
 	HTTPResponse resp = HTTPResponse(Url());
-	resp.setCode(error.getHTTPCode());
+	resp.setCode(codeOverride == HTTP_NONE? error.getHTTPCode() : codeOverride);
 
 	std::string errorPageContent;
 	bool customPageFound = false;

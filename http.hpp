@@ -26,7 +26,11 @@ namespace Webserv {
 	// Represents an error that might have occured when parsing the HTTP request.
 	enum HTTPRequestError {
 		INVALID_REQUEST,
-		INVALID_METHOD,
+		MISSING_STARTING_LINE,
+		MISSING_HTTP_METHOD,
+		INVALID_HTTP_METHOD,
+		MISSING_HTTP_PATH,
+		INVALID_HTTP_HEADER,
 		NO_DATA_SEGMENT,
 	};
 
@@ -36,7 +40,6 @@ namespace Webserv {
 	struct Error;
 
 	// `HTTPRequest` is a container that contains parsed HTTP request data.
-	// TODO: Parse the request header into `std::map<std::string, std::string>`.
 	class HTTPRequest {
 	public:
 		class Builder {
@@ -105,8 +108,6 @@ namespace Webserv {
 	std::ostream& operator<<(std::ostream&, const HTTPRequest&);
 
 	// This enum represents possible return codes a server may respond with.
-	// TODO: refactor this thing into a struct of static ushorts. We are *NOT* goint to be writing down
-	// every single HTTP return code into this enum by hand...
 	enum HTTPReturnCode {
 		HTTP_NONE = 0,
 		// 1xx Informational response
@@ -228,10 +229,10 @@ namespace Webserv {
 	};
 
 	// Returns a string that represents an HTTP content type in the header.
-	std::string contentTypeString(HTTPContentType); // TODO
+	std::string contentTypeString(HTTPContentType);
 
 	// Determines content type based on the file extension from the Url.
-	HTTPContentType getContentType(const Url&); // TODO
+	HTTPContentType getContentType(const Url&);
 }
 
 #endif

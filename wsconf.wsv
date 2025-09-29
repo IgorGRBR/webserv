@@ -1,5 +1,7 @@
 # This is a simple config file example
 
+messageBufferSize 2000
+
 server (
 	listen 8080
 	maxRequestSize 1024
@@ -8,7 +10,6 @@ server (
 
 	location /awesome (
 		root ./exampleSite/
-		return 200
 		dirListing
 		allowMethod POST
 		allowMethod GET
@@ -18,18 +19,15 @@ server (
         errorPage 401 ./exampleSite/errors/401.html  # fix this path
         errorPage 405 ./exampleSite/errors/405.html  # fix this path
         errorPage 500 ./exampleSite/errors/500.html # fix this path
-
 	)
 
 	location /awesome/thingy (
 		root ./exampleSite/test
-		return 200
 		index "cool.html"
 	)
 
 	location /awesome/upload (
 		root ./exampleSite/upload/
-		return 200
 		dirListing
 		allowMethod POST
 		allowMethod GET #This is apparently needed to avoid the "HTTP method is not allowed" error
@@ -62,7 +60,6 @@ server (
 	serverName (www.cool-site.com awesome.com)
 	location / (
 		root ./exampleSite/test
-		return 200
 		index cool.html
 		maxRequestSize 200
 	)

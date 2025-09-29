@@ -14,7 +14,6 @@ namespace Webserv {
 
 		Option<std::string> operator[](const std::string&);
 		Option<std::string> operator[](const std::string&) const;
-		std::string toCGIString() const;
 	private:
 		std::map<std::string, std::string> fields;
 	};

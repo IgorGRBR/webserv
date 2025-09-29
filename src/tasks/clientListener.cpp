@@ -8,6 +8,10 @@
 #include <unistd.h>
 #include "tasks.hpp"
 
+#ifndef REQUEST_REFUSAL_THRESHOLD
+#define REQUEST_REFUSAL_THRESHOLD 200
+#endif
+
 typedef Webserv::Error Error;
 typedef Webserv::Config::Server::Location Location;
 typedef Webserv::ClientListener ClientListener;
@@ -44,6 +48,7 @@ Result<ClientListener*, Error> ClientListener::tryMake(Config& config, Config::S
 	sData.serverNames = serverConfig.serverNames;
 	sData.cgiInterpreters = config.cgiBinds;
 	sData.envp = envp;
+	sData.messageBufferSize = config.messageBufferSize;
 
 	// So, lets start with making a socket object
 	sData.socketFd = socket(AF_INET, SOCK_STREAM, 0);
@@ -62,7 +67,7 @@ Result<ClientListener*, Error> ClientListener::tryMake(Config& config, Config::S
 		return Error(Error::SOCKET_BIND_FAILURE);
 	}
 
-	if (listen(sData.socketFd, 200) < 0) { //TODO: figure out what to do with the second parameter
+	if (listen(sData.socketFd, REQUEST_REFUSAL_THRESHOLD) < 0) {
 		close(sData.socketFd);
 		return Error(Error::SOCKET_LISTEN_FAILURE);
 	}
@@ -70,14 +75,6 @@ Result<ClientListener*, Error> ClientListener::tryMake(Config& config, Config::S
 	ClientListener *listener = new ClientListener(sData, sData.socketFd);
 	return listener;
 }
-
-// int ClientListener::getDescriptor() const {
-// 	return socketFd;
-// }
-
-// Webserv::IOMode ClientListener::getIOMode() const {
-// 	return READ_MODE;
-// }
 
 Result<bool, Webserv::Error> ClientListener::runTask(FDTaskDispatcher& dispatcher) {
 	int clientSocket = accept(socketFd, (sockaddr *)&sData.address, (socklen_t *)&sData.addressLen);

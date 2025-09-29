@@ -27,6 +27,7 @@ namespace Webserv {
 			FORM_PARSING_ERROR,
 			CGI_IO_ERROR,
 			CGI_RUNTIME_FAULT,
+			CONFIG_ERROR,
 		};
 
 		// Constructs an error instance with provided tag and no associated message.
@@ -34,6 +35,8 @@ namespace Webserv {
 
 		// Constructs an error instance with provided tag and a message that can provide additional context.
 		Error(Tag, const std::string& message);
+
+		Error(HTTPReturnCode, const std::string& message);
 
 		// Returns a short description of the error tag.
 		const char* getTagMessage() const;
@@ -43,6 +46,7 @@ namespace Webserv {
 
 		Tag tag;
 		std::string message;
+		HTTPReturnCode code;
 	};
 }
 

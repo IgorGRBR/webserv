@@ -42,7 +42,7 @@ namespace Webserv {
 	class IFDTask {
 	public:
 		IFDTask(int, IOMode);
-		
+
 		virtual ~IFDTask();
 		
 		// Runs the task. Additionally provides the `FDTaskDispatcher` instance reference, as running a task may produce
@@ -50,14 +50,10 @@ namespace Webserv {
 		// runtime error.
 		virtual Result<bool, Error> runTask(FDTaskDispatcher&) = 0;
 
-		// Returns the file descriptor associated with the task.
-		// TODO: this can probably be a simple const field.
-		// virtual int getDescriptor() const = 0;
+		// The file descriptor associated with the task.
 		const int fileDescriptor;
 
-		// Returns the IO mode of the task.
-		// TODO: same as the above.
-		// virtual IOMode getIOMode() const = 0;
+		// The IO mode of the task.
 		const IOMode ioMode;
 	};
 
@@ -81,9 +77,7 @@ namespace Webserv {
 	// and updating their states. It also manages the state of `epoll` instance.
 	class FDTaskDispatcher {
 	public:
-		// Constructs the `FDTaskDispatcher` instance.
-		// TODO: `epoll_create1` inside the constructor might fail, make it private and introduce a static constructor here.
-		FDTaskDispatcher();
+		static Option<UniquePtr<FDTaskDispatcher> > tryMake();
 
 		// Cleans up the internal `epoll` instance and closes all of the file descriptors.
 		~FDTaskDispatcher();
@@ -100,6 +94,9 @@ namespace Webserv {
 		void removeByFd(int fd);
 
 	private:
+		// Constructs the `FDTaskDispatcher` instance.
+		FDTaskDispatcher();
+
 		// Removing copying constructors significantly simplifies memory management of the tasks.
 		FDTaskDispatcher(const FDTaskDispatcher&); // No implementation
 		FDTaskDispatcher& operator=(const FDTaskDispatcher&); // No implementation

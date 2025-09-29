@@ -32,9 +32,6 @@ namespace Webserv {
 				// I forgor.
 				Option<std::string> proxyPass;
 
-				// The default return code (???)
-				ushort retCode;
-
 				// Specifies whether there should be directory listing being served instead of an index file.
 				bool dirListing;
 
@@ -82,6 +79,8 @@ namespace Webserv {
 		uint maxRequestSize;
 
 		std::map<std::string, std::string> cgiBinds;
+
+		uint messageBufferSize;
 	};
 
 	// Token parsing stuff. Only used to parse the configuration, which is basically solved at this point, so no
@@ -114,6 +113,7 @@ namespace Webserv {
 		UNEXPECTED_EOF,
 		UNEXPECTED_TOKEN,
 		CONFIG_PARSING_ERROR,
+		NOT_A_NUMBER,
 	};
 
 	// Attempts to read and parse configuration from the file provided by the `path`. Returns either a `Config` object,
@@ -122,6 +122,8 @@ namespace Webserv {
 
 	// Converts a string to an unsigned character, representing a set of flags for HTTP methods.
 	Option<unsigned char> strToHttpMethod(std::string&);
+
+	std::string configErrorDescription(ConfigError);
 }
 
 #endif

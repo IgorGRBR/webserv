@@ -34,7 +34,7 @@ namespace Webserv {
 		(void)dispatcher;
 		char* buffer = new char[readSize + 1]();
 		int readResult = read(fd, buffer, readSize);
-		if (readResult < 0) return Error(Error::GENERIC_ERROR, "CGIReader fail");
+		if (readResult < 0) return Error(Error::CGI_IO_ERROR, "CGIReader fail");
 		std::string bufStr = std::string(buffer, readResult);
 		delete[] buffer;
 #ifdef DEBUG
@@ -51,7 +51,7 @@ namespace Webserv {
 			int wstatus;
 			// No WNOHANG, because otherwise we will never be able to determine if it finishes running.
 			int waitResult = waitpid(pid, &wstatus, 0);
-			if (waitResult < 0) return Error(Error::GENERIC_ERROR, "waitpid error");
+			if (waitResult < 0) return Error(Error::CGI_IO_ERROR, "waitpid error :()");
 			if (WIFEXITED(wstatus)) {
 #ifdef DEBUG
 				std::cout << "Process " << pid << " has stopeed, cooking it rn" << std::endl;
@@ -180,18 +180,19 @@ namespace Webserv {
 		const Url& scriptLocation,
 		const Url& extraPath,
 		const HTTPRequest& request,
-		char** envp
+		char** envp,
+		uint readBufferSize
 	) {
 		std::string scriptName = scriptLocation.getSegments().back();
 		int readPipe[2];
 		int writePipe[2];
 
 		if (pipe(readPipe) == -1) {
-			return Error(Error::GENERIC_ERROR, "Pipe error");
+			return Error(Error::CGI_IO_ERROR, "Pipe error");
 		}
 
 		if (pipe(writePipe) == -1) {
-			return Error(Error::GENERIC_ERROR, "Pipe error");
+			return Error(Error::CGI_IO_ERROR, "Pipe error");
 		}
 
 		int forkResult = fork();
@@ -213,7 +214,7 @@ namespace Webserv {
 			args[2] = NULL;
 
 			scriptName.copy(args[1], scriptName.size());
-			args[1][scriptName.size()] = 0; // TODO: this may be redundant
+			args[1][scriptName.size()] = 0;
 
 			// Construct new envp
 			std::map<std::string, std::string> extraEnvs;
@@ -235,7 +236,6 @@ namespace Webserv {
 			Url finalBinaryLocation = binaryLocation.getSegments().empty()? scriptLocation : binaryLocation;
 			execve(finalBinaryLocation.toString(false, true).c_str(), args, newEnvp);
 
-			// TODO: the following may be redundant;
 			delete[] args[0];
 			delete[] args[1];
 			char** cstr = newEnvp;
@@ -253,7 +253,7 @@ namespace Webserv {
 
 		SharedPtr<ResponseHandler> respHandler = new ResponseHandler(conn);
 		SharedPtr<CGIWriter> writer = new CGIWriter(writePipe[1]);
-		SharedPtr<CGIReader> reader = new CGIReader(conn, respHandler, forkResult, readPipe[0], MSG_BUF_SIZE);
+		SharedPtr<CGIReader> reader = new CGIReader(conn, respHandler, forkResult, readPipe[0], readBufferSize);
 		reader->setWriter(writer);
 		writer->consumeFileData(request.getData());
 

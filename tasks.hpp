@@ -35,7 +35,7 @@ namespace Webserv {
 		~RequestHandler();
 	private:
 		RequestHandler(const ServerData&, int);
-		Option<Error> sendError(FDTaskDispatcher&, Error);
+		Option<Error> sendError(FDTaskDispatcher&, Error, HTTPReturnCode codeOverride = HTTP_NONE);
 		Option<Error> finalize(FDTaskDispatcher&);
 
 		//declarations for custom error pages
@@ -92,7 +92,7 @@ namespace Webserv {
 			const SharedPtr<ResponseHandler>& resp,
 			int pid,
 			int fd,
-			uint rSize = MSG_BUF_SIZE
+			uint rSize
 		);
 
 		Result<bool, Error> runTask(FDTaskDispatcher&);
@@ -119,7 +119,8 @@ namespace Webserv {
 		const Url& scriptLocation,
 		const Url& extraPath,
 		const HTTPRequest& request,
-		char** envp
+		char** envp,
+		uint readBufferSize
 	);
 }
 
