@@ -97,7 +97,13 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 				SEND_ERROR(dispatcher, Error(Error::RESOURCE_NOT_FOUND, "Specified location not found"));
 			}
 			Option<HTTPMethod> method = reqBuilder.getHTTPMethod();
-			if (method.isSome() && method.get() != GET && !reqBuilder.isChunked() && method.get() != DELETE) {
+			if (
+				method.isSome()
+				&& method.get() != GET
+				&& !reqBuilder.isChunked()
+				&& method.get() != DELETE
+				&& method.get() != HEAD
+			) {
 				Option<uint> maybeContLength = reqBuilder.getContentLength();
 				if (maybeContLength.isNone()) {
 					SEND_ERROR(dispatcher, Error(HTTP_LENGTH_REQUIRED, 

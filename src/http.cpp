@@ -26,6 +26,8 @@ const char* Webserv::httpMethodName(HTTPMethod method) {
 			return "PUT";
 		case DELETE:
 			return "DELETE";
+		case HEAD:
+			return "HEAD";
 		}
 	return "UNKNOWN";
 };
@@ -36,6 +38,7 @@ Option<HTTPMethod> Webserv::httpMethodFromStr(const std::string &str) {
 	else if (lower == "post") return Webserv::POST;
 	else if (lower == "put") return Webserv::PUT;
 	else if (lower == "delete") return Webserv::DELETE;
+	else if (lower == "head") return Webserv::HEAD;
 	return NONE;
 };
 
@@ -344,7 +347,7 @@ const char* Webserv::httpReturnCodeMessage(HTTPReturnCode retCode) {
 		case HTTP_NONE:
 			return "None";
 		case HTTP_OK:
-			return "Ok";
+			return "OK";
 		case HTTP_INTERNAL_SERVER_ERROR:
 			return "Internal server error";
 		case HTTP_FORBIDDEN:

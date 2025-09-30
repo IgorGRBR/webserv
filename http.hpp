@@ -15,6 +15,7 @@ namespace Webserv {
 		POST,
 		PUT,
 		DELETE,
+		HEAD,
 	};
 
 	// Returns a name of the HTTP method as a c-string.

@@ -25,6 +25,8 @@ namespace Webserv {
 			return HTTP_PUT_FLAG & configByte;
 		case Webserv::DELETE:
 			return HTTP_DELETE_FLAG & configByte;
+		case Webserv::HEAD:
+			return HTTP_GET_FLAG & configByte;
 		}
 		return false;
 	}
@@ -352,7 +354,8 @@ namespace Webserv {
 
 		if (fileContent.isSome()) {
 			HTTPResponse resp = HTTPResponse(Url(), HTTP_OK);
-			resp.setData(fileContent.get());
+			if (request.getMethod() != HEAD)
+				resp.setData(fileContent.get());
 			resp.setContentType(contentTypeString(contentType));
 			
 			Result<ResponseHandler*, Error> response = ResponseHandler::tryMake(conn, resp);
