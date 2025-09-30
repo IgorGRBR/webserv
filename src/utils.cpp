@@ -1,3 +1,5 @@
+#include "locationTree.hpp"
+#include "tasks.hpp"
 #include "webserv.hpp"
 #include "config.hpp"
 #include "error.hpp"
@@ -8,10 +10,6 @@
 #include "webserv.hpp"
 #include "ystl.hpp"
 #include <sstream>
-
-typedef Webserv::Error Error;
-typedef Webserv::Config::Server::Location Location;
-typedef Webserv::HTTPResponse HTTPResponse;
 
 const std::string errorTemplate =
 "<!DOCTYPE html>" 
@@ -63,67 +61,147 @@ const std::string errorTemplate =
 "</body>"
 "</html>";
 
-
-std::string Webserv::makeErrorPage(Error e) {
-	HTMLTemplate temp;
-	temp.bind("ERR_KIND", e.getTagMessage());
-	temp.bind("ERR_MSG", e.message);
-	return temp.apply(errorTemplate);
-}
-
-std::string Webserv::readAll(std::ifstream& ifs) {
-	std::ostringstream stream;
-
-	stream << ifs.rdbuf();
-
-	return stream.str();
-}
-
-Option<uint> Webserv::hexStrToUInt(const std::string& str) {
-	std::string lower = strToLower(str);
-	uint result = 0;
-	for (uint i = 0; i < lower.size(); i++) {
-		if (!std::isalnum(lower[i]) || lower[i] > 'f') {
+namespace Webserv {
+	std::string makeErrorPage(Error e) {
+		HTMLTemplate temp;
+		temp.bind("ERR_KIND", e.getTagMessage());
+		temp.bind("ERR_MSG", e.message);
+		return temp.apply(errorTemplate);
+	}
+	
+	std::string readAll(std::ifstream& ifs) {
+		std::ostringstream stream;
+	
+		stream << ifs.rdbuf();
+	
+		return stream.str();
+	}
+	
+	Option<uint> hexStrToUInt(const std::string& str) {
+		std::string lower = strToLower(str);
+		uint result = 0;
+		for (uint i = 0; i < lower.size(); i++) {
+			if (!std::isalnum(lower[i]) || lower[i] > 'f') {
+				return NONE;
+			}
+			char delta = std::isalpha(lower[i]) ? ('a' - 10) : '0';
+			result *= 16;
+			result += lower[i] - delta;
+		}
+		return result;
+	}
+	
+	Option<std::string> getFileExtension(const std::string& fileName) {
+		std::string trimmedFilename = trimString(fileName, '.');
+		if (trimmedFilename.find(".") == std::string::npos) {
 			return NONE;
 		}
-		char delta = std::isalpha(lower[i]) ? ('a' - 10) : '0';
-		result *= 16;
-		result += lower[i] - delta;
+	
+		std::stringstream stream(trimmedFilename);
+		std::string line;
+		std::string extension;
+		while (getline(stream, line, '.')) {
+			extension = line;
+		};
+		return extension;
 	}
-	return result;
-}
+	
+	Option<int> strToInt(const std::string& str) {
+		int result = 0;
+		bool negative = false;
+		bool readingNumber = false;
+		for (uint i = 0; i < str.size(); i++) {
+			if (str[i] == '-' && !readingNumber) {
+				negative = !negative;
+			}
+			else if (std::isdigit(str[i])) {
+				readingNumber = true;
+				result *= 10;
+				result += str[i] - '0';
+			}
+			else {
+				return NONE;
+			}
+		}
+		return result * (negative ? -1 : 1);
+	}
 
-Option<std::string> Webserv::getFileExtension(const std::string& fileName) {
-	std::string trimmedFilename = trimString(fileName, '.');
-	if (trimmedFilename.find(".") == std::string::npos) {
+	static bool readErrorPageFromFile(const std::string& filePath, std::string& content) {
+		std::ifstream file(filePath.c_str());
+		if (!file.is_open()) {
+	#ifdef DEBUG
+			std::cerr << "Failed to open error page file: " << filePath << std::endl;
+	#endif
+			return false;
+		}
+
+		std::string line;
+		content.clear();
+		while (std::getline(file, line)) {
+			content += line + "\n";
+		}
+
+		file.close();
+		return !content.empty();
+	}
+
+	Option<Error> sendErrorPage(
+		ConnectionInfo conn,
+		ServerData sData,
+		Option<LocationTreeNode::LocationSearchResult> location,
+		FDTaskDispatcher& dispatcher,
+		Error error
+	) {
+		HTTPResponse resp = HTTPResponse(Url());
+		resp.setCode(error.getHTTPCode());
+
+		std::string errorPageContent;
+		bool customPageFound = false;
+		std::string errorPagePath;
+
+		// Check location-specific error pages first
+		if (location.isSome()) {
+			const std::map<ushort, std::string>& locErrPages = location.get().location->errPages;
+			std::map<ushort, std::string>::const_iterator it = locErrPages.find(error.getHTTPCode());
+			if (it != locErrPages.end()) {
+				errorPagePath = it->second;
+			}
+		}
+
+		// If no location error page found, check server-level error pages
+		if (errorPagePath.empty()) {
+			std::map<ushort, std::string>::const_iterator sit = sData.config.errPages.find(error.getHTTPCode());
+			if (sit != sData.config.errPages.end()) {
+				errorPagePath = sit->second;
+			}
+		}
+
+		// Attempt to read custom error page file
+		if (!errorPagePath.empty()) {
+			if (readErrorPageFromFile(errorPagePath, errorPageContent)) {
+				customPageFound = true;
+			}
+#ifdef DEBUG
+			else {
+				std::cerr << "Failed to read custom error page file: " << errorPagePath << std::endl;
+			}
+#endif
+		}
+
+		if (customPageFound) {
+			resp.setData(errorPageContent);
+			resp.setContentType(contentTypeString(getContentType(Url::fromString(errorPagePath).get())));
+		} else {
+			resp.setData(makeErrorPage(error));
+			resp.setContentType(contentTypeString(HTML));
+		}
+
+		Result<ResponseHandler*, Error> maybeRespTask =
+			ResponseHandler::tryMake(conn, resp);
+		if (maybeRespTask.isError()) {
+			return maybeRespTask.getError();
+		}
+		dispatcher.registerTask(maybeRespTask.getValue());
 		return NONE;
 	}
-
-	std::stringstream stream(trimmedFilename);
-	std::string line;
-	std::string extension;
-	while (getline(stream, line, '.')) {
-		extension = line;
-	};
-	return extension;
-}
-
-Option<int> Webserv::strToInt(const std::string& str) {
-	int result = 0;
-	bool negative = false;
-	bool readingNumber = false;
-	for (uint i = 0; i < str.size(); i++) {
-		if (str[i] == '-' && !readingNumber) {
-			negative = !negative;
-		}
-		else if (std::isdigit(str[i])) {
-			readingNumber = true;
-			result *= 10;
-			result += str[i] - '0';
-		}
-		else {
-			return NONE;
-		}
-	}
-	return result * (negative ? -1 : 1);
 }

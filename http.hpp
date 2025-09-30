@@ -47,6 +47,7 @@ namespace Webserv {
 			enum State {
 				INITIAL,
 				HEADER_COMPLETE,
+				CHUNKED_READ_COMPLETE,
 			};
 			Builder();
 			Result<State, Error> appendData(const std::string&);

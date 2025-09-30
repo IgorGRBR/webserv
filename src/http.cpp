@@ -568,22 +568,24 @@ Builder::Builder():
 	chunkedReadComplete(false)
 	{};
 
+static bool findDoubleNl(const std::vector<std::string>& vec, const std::string& substr) {
+	if (vec.size() == 0) return false;
+	uint n = std::min(vec.size(), substr.size());
+	std::stringstream stream;
+	for (uint i = 0; i < n; i++) {
+		stream << vec[vec.size() - n + i];
+	}
+	std::string str = stream.str();
+	return str.find(substr) != str.npos;
+}
+
 Result<Builder::State, Webserv::Error> Builder::appendData(const std::string& str) {
 	bool headerComplete = false;
 	switch (internalState) {
 		case INITIAL:
-			if (lines.size() > 0) {
-				// This is so inefficient...
-				std::string lastCombined = lines.back() + str;
-				if (lastCombined.find("\r\n\r\n") != std::string::npos) {
-					internalState = HEADER_COMPLETE;
-					headerComplete = true;
-				}
-			}
-			
 			lines.push_back(str);
 
-			if (lines.back().find("\r\n\r\n") != std::string::npos) {
+			if (findDoubleNl(lines, "\r\n\r\n")) {
 				internalState = HEADER_COMPLETE;
 				headerComplete = true;
 			}
@@ -594,6 +596,8 @@ Result<Builder::State, Webserv::Error> Builder::appendData(const std::string& st
 				dataSize += str.size();
 			}
 			break;
+		case CHUNKED_READ_COMPLETE:
+			return CHUNKED_READ_COMPLETE;
 		}
 
 	if (headerComplete) {
@@ -607,7 +611,6 @@ Result<Builder::State, Webserv::Error> Builder::appendData(const std::string& st
 		std::string headerStr = collectedDataString.substr(0, doubleNlPos + 4);
 
 		std::string rest = collectedDataString.substr(doubleNlPos + 4, collectedDataString.size() - doubleNlPos);
-		// lines.clear();
 		dataSize = rest.size();
 
 		HTTPRequest* reqPtr = new HTTPRequest();
@@ -645,7 +648,7 @@ Result<Builder::State, Webserv::Error> Builder::readChunk(const std::string& str
 			if (maybeSize.isNone()) return Error(HTTP_BAD_REQUEST, "Chunk size reading error");
 			if (maybeSize == 0) {
 				chunkedReadComplete = true;
-				return HEADER_COMPLETE;
+				return CHUNKED_READ_COMPLETE;
 			};
 			std::string data = chunk.substr(nlPos + 2, maybeSize.get());
 			if (data.size() < maybeSize.get()) {

@@ -115,7 +115,11 @@ namespace Webserv {
 		std::string str = bufStream.str();
 		std::cout << "Trying to write: " << str << std::endl;
 		int writeError = write(fd, str.c_str(), str.size());
-		if (writeError == -1) return Error(Error::CGI_IO_ERROR, "CGIWriter fail");
+		if (writeError == -1) {
+#ifdef DEBUG
+			std::cerr << "write error :(" << std::endl;
+#endif
+		}
 		return continuous;
 	}
 

@@ -323,7 +323,6 @@ public:
 	// Deletes the inner object if unique pointer onws it.
 	~UniquePtr() {
 		if (ptr) {
-			std::cout << "Deleting unique ptr: " << ptr << std::endl;
 			delete ptr;
 		}
 	};

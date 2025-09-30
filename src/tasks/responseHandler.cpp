@@ -39,19 +39,13 @@ Result<bool, Error> ResponseHandler::runTask(FDTaskDispatcher&) {
 	return false;
 }
 
-// int ResponseHandler::getDescriptor() const {
-// 	return conn.connectionFd;
-// }
-
-// Webserv::IOMode ResponseHandler::getIOMode() const {
-// 	return WRITE_MODE;
-// }
-
 void ResponseHandler::setResponse(const HTTPResponse& resp) {
 	response = resp;
 }
 
 ResponseHandler::~ResponseHandler() {
+#ifdef DEBUG
 	std::cout << "Destroying response handler" << std::endl;
+#endif
 	close(conn.connectionFd);
 }

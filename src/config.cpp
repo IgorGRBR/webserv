@@ -109,6 +109,7 @@ namespace Webserv {
 		
 		Config::Server::Location location;
 		location.allowCGI = false;
+		location.dirListing = false;
 		std::string sym;
 		location.allowedMethods = HTTP_ALL_FLAGS;
 		while (ctx.it != ctx.end) {

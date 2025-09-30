@@ -35,7 +35,7 @@ namespace Webserv {
 		~RequestHandler();
 	private:
 		RequestHandler(const ServerData&, int);
-		Option<Error> sendError(FDTaskDispatcher&, Error, HTTPReturnCode codeOverride = HTTP_NONE);
+		Option<Error> sendError(FDTaskDispatcher&, Error);
 		Option<Error> finalize(FDTaskDispatcher&);
 
 		//declarations for custom error pages

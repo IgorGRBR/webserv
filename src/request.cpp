@@ -223,11 +223,11 @@ namespace Webserv {
 	}
 
 	TaskResult handleLocation(
-	const Url& path,
-	const Config::Server::Location& location,
-	HTTPRequest& request,
-	ServerData& sData,
-	int clientSocketFd
+		const Url& path,
+		const Config::Server::Location& location,
+		HTTPRequest& request,
+		ServerData& sData,
+		int clientSocketFd
 	) {
 		ConnectionInfo conn;
 		conn.connectionFd = clientSocketFd;
@@ -263,14 +263,17 @@ namespace Webserv {
 			return Error(Error::CONFIG_ERROR, "Missing root location in configuration");
 		}
 
-		Option<std::string> fileContent = NONE;
 		Url rootUrl = Url::fromString(root).get();
 		Url tail = request.getPath().tailDiff(path);
-
 		if (location.allowCGI && (request.getMethod() == POST || request.getMethod() == GET)) {
 			return handleCGI(clientSocketFd, rootUrl, tail, location, request, sData);
 		}
 
+		if (!checkIfMethodIsInByte(request.getMethod(), location.allowedMethods)) {
+			return Error(HTTP_METHOD_NOT_ALLOWED, "HTTP method is not allowed");
+		};
+		
+		Option<std::string> fileContent = NONE;
 		if (tail.getSegments().empty()
 		&& request.getMethod() == POST
 		&& location.fileUploadFieldId.isSome()) {
@@ -290,7 +293,9 @@ namespace Webserv {
 		}
 
 		std::string respFilePath = respFileUrl.toString(false);
+#ifdef DEBUG
 		std::cout << "Trying to load: " << respFilePath << std::endl;
+#endif
 
 		// Check file system type and load content
 		FSType fsType = checkFSType(respFilePath);
@@ -311,17 +316,26 @@ namespace Webserv {
 			}
 			break;
 		case FS_DIRECTORY:
-			std::string indexStr = location.index.getOr("index.html");
-			Url index = Url::fromString(indexStr).get();
-
-			std::string indexFilePath = (respFileUrl + index).toString(false);
-			std::cout << "Trying to load: " << indexFilePath << std::endl;
-			std::ifstream respFile(indexFilePath.c_str());
-
-			if (respFile.is_open()) { // Try to load index file
-				fileContent = readAll(respFile);
-				Url indexFileUrl = respFileUrl + index;
-				contentType = getContentType(indexFileUrl);
+			if (!location.dirListing) {
+				std::string indexStr = location.index.getOr("index.html");
+				Option<Url> maybeIndex = Url::fromString(indexStr);
+				if (maybeIndex.isNone()) {
+					return Error(Error::CONFIG_ERROR, "Invalid index file URL");
+				}
+				Url index = maybeIndex.get();
+	
+				std::string indexFilePath = (respFileUrl + index).toString(false);
+				std::cout << "Trying to load: " << indexFilePath << std::endl;
+				std::ifstream respFile(indexFilePath.c_str());
+	
+				if (respFile.is_open()) { // Try to load index file
+					fileContent = readAll(respFile);
+					Url indexFileUrl = respFileUrl + index;
+					contentType = getContentType(indexFileUrl);
+				}
+				else {
+					return Error(HTTP_NOT_FOUND, "Index file was not found");
+				}
 			}
 			else { // Try to create directory listing
 				std::string urlPath = request.getPath().toString(true);
@@ -360,9 +374,6 @@ namespace Webserv {
 
 	TaskResult handleRequest(HTTPRequest& request, LocationTreeNode::LocationSearchResult& query, ServerData& sData, int clientSocketFd) {
 		const Location* location = query.location;
-		if (!checkIfMethodIsInByte(request.getMethod(), location->allowedMethods)) {
-			return Error(HTTP_METHOD_NOT_ALLOWED, "HTTP method is not allowed");
-		};
 		return handleLocation(query.locationPath, *location, request, sData, clientSocketFd);
 	};
 }

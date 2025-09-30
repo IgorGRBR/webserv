@@ -74,6 +74,14 @@ namespace Webserv {
 	Option<std::string> getFileExtension(const std::string& fileName);
 
 	Option<int> strToInt(const std::string& str);
+
+	Option<Error> sendErrorPage(
+		ConnectionInfo conn,
+		ServerData sData,
+		Option<LocationTreeNode::LocationSearchResult> location,
+		FDTaskDispatcher& dispatcher,
+		Error error
+	);
 }
 
 #endif

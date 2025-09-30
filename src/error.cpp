@@ -4,10 +4,10 @@
 
 namespace Webserv {
 
-	Error::Error(Tag t): tag(t) {}
+	Error::Error(Tag t): tag(t), code(HTTP_NONE) {}
 	
 	Error::Error(Tag t, const std::string& message):
-		tag(t), message(message) {};
+		tag(t), message(message), code(HTTP_NONE) {};
 	
 	Error::Error(HTTPReturnCode code, const std::string& message):
 		tag(HTTP_ERROR),
