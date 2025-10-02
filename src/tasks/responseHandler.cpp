@@ -16,13 +16,15 @@ typedef Webserv::ResponseHandler ResponseHandler;
 ResponseHandler::ResponseHandler(const ConnectionInfo& ci):
 	IFDTask(ci.connectionFd, WRITE_MODE),
 	conn(ci),
-	response(NONE)
+	response(NONE),
+	writeStr(NONE)
 {}
 
 ResponseHandler::ResponseHandler(ConnectionInfo& ci, const HTTPResponse& resp):
 	IFDTask(ci.connectionFd, WRITE_MODE),
 	conn(ci),
-	response(resp)
+	response(resp),
+	writeStr(NONE)
 {}
 
 Result<ResponseHandler*, Error> ResponseHandler::tryMake(ConnectionInfo& ci, const HTTPResponse& resp) {
@@ -31,10 +33,25 @@ Result<ResponseHandler*, Error> ResponseHandler::tryMake(ConnectionInfo& ci, con
 
 Result<bool, Error> ResponseHandler::runTask(FDTaskDispatcher&) {
 	if (response.isNone()) return true;
-	std::string responseStr = response.get().build();
+
+	if (writeStr.isNone()) {
+		writeStr = response.get().build();
+	}
 
 	// Write response to client socket with error checking
-	write(conn.connectionFd, responseStr.c_str(), responseStr.length());
+	long writeResult = write(conn.connectionFd, writeStr.get().c_str(), writeStr.get().length());
+
+	if (writeResult <= 0) {
+#ifdef DEBUG
+		std::cerr << "write error :(" << std::endl;
+#endif
+		return false;
+	}
+
+	if (writeStr.get().length() - writeResult > 0) {
+		writeStr = writeStr.get().substr(0, writeResult);
+		return true;
+	}
 
 	return false;
 }

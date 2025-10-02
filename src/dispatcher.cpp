@@ -81,8 +81,13 @@ namespace Webserv {
 	#ifdef LINUX
 		struct epoll_event ev;
 		ev.events = 0;
+	#ifndef COMBINED_IO_MODES
 		if (mode == READ_MODE) ev.events = EPOLLIN;
 		if (mode == WRITE_MODE) ev.events = EPOLLOUT;
+	#else
+		(void)mode;
+		ev.events = EPOLLIN | EPOLLOUT;
+	#endif
 		ev.data.fd = fd;
 		int ctlResult = epoll_ctl(epollFd, EPOLL_CTL_ADD, fd, &ev);
 		(void)ctlResult;
@@ -93,8 +98,13 @@ namespace Webserv {
 	#ifdef OSX
 		struct kevent ev;
 		ushort flags;
+	#ifndef COMBINED_IO_MODES
 		if (mode == READ_MODE) flags = EVFILT_READ;
 		if (mode == WRITE_MODE) flags = EVFILT_WRITE;
+	#else
+		(void)mode;
+		flags = EVFILT_READ | EVFILT_WRITE;
+	#endif
 		EV_SET(&ev, fd, flags, EV_ADD, 0, 0, NULL);
 		kevent(kqueueFd, &ev, 1, NULL, 0, NULL);
 	#endif

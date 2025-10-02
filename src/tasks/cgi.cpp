@@ -114,11 +114,17 @@ namespace Webserv {
 		writeBuffer.clear();
 		std::string str = bufStream.str();
 		std::cout << "Trying to write: " << str << std::endl;
-		int writeError = write(fd, str.c_str(), str.size());
-		if (writeError == -1) {
+		int writeResult = write(fd, str.c_str(), str.size());
+		if (writeResult <= 0) {
 #ifdef DEBUG
 			std::cerr << "write error :(" << std::endl;
 #endif
+			return false;
+		}
+
+		if (str.size() - writeResult > 0) {
+			writeBuffer.push_back(str.substr(0, writeResult));
+			return true;
 		}
 		return continuous;
 	}

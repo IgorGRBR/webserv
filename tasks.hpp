@@ -65,6 +65,7 @@ namespace Webserv {
 
 		ConnectionInfo conn;
 		Option<HTTPResponse> response;
+		Option<std::string> writeStr;
 	};
 
 	class CGIWriter: public IFDTask, public IFDConsumer {

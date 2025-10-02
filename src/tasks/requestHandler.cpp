@@ -48,6 +48,10 @@ Result<bool, Error> RequestHandler::runTask(FDTaskDispatcher& dispatcher) {
 	std::cout << "Read result: " << readResult << "\nContent:\n" << bufStr << std::endl;
 #endif
 
+	if (readResult < 0) {
+		SEND_ERROR(dispatcher, Error(Error::GENERIC_ERROR, "Socket read failed"));
+	}
+
 	if (readResult == 0) {
 		// I have exactly zero clue why this happens, but this does happen occasionally when you
 		// go back a page in the browser.
