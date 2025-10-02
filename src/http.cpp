@@ -49,7 +49,7 @@ const char* Webserv::httpRequestErrorMessage(HTTPRequestError err) {
 		case NO_DATA_SEGMENT:
 			return "Data segment of the request is missing";
 		case INVALID_HTTP_METHOD:
-			return "Invalid HTTP method received";
+			return "Invalid/unknown HTTP method received";
 		case MISSING_STARTING_LINE:
 			return "HTTP starting line is missing/message is empty";
 		case MISSING_HTTP_METHOD:

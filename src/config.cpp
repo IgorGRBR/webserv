@@ -200,6 +200,7 @@ namespace Webserv {
 	
 		std::string sym;
 		Config::Server server;
+		server.optional = false;
 		while (ctx.it != ctx.end) {
 			switch (ctx.it->getTag()) {
 				case Token::SYMBOL:
@@ -211,6 +212,9 @@ namespace Webserv {
 						ushort port;
 						if (!(s >> port)) return NOT_A_NUMBER;
 						server.port = port;
+					}
+					else if (sym == "optional") {
+						server.optional = true;
 					}
 					else if (sym == "serverName") {
 						if (++ctx.it == ctx.end) return UNEXPECTED_EOF;

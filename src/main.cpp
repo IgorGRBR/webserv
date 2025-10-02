@@ -48,8 +48,10 @@ int main(int argc, char* argv[], char *envp[]) {
 		if (maybeListener.isError()) {
 			std::cout << "Critical error when trying to construct a client listener: "
 				<< maybeListener.getError().getTagMessage() << std::endl;
-			std::cout << "Shutting down the webserv" << std::endl;
-			return 1;
+			if (!config.servers[i].optional) {
+				std::cout << "Shutting down the webserv" << std::endl;
+				return 1;
+			}
 		}
 		else {
 			dispatcher->registerTask(maybeListener.getValue());

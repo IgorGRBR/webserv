@@ -67,6 +67,8 @@ namespace Webserv {
 			Option<uint> maxRequestSize;
 
 			std::map<ushort, std::string> errPages;
+
+			bool optional;
 		};
 
 		// List of servers.
